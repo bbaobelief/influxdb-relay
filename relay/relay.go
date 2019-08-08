@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"influxdb-relay/config"
 )
 
 type Service struct {
 	relays map[string]Relay
 }
 
-func New(config Config) (*Service, error) {
+func New(config config.Config) (*Service, error) {
 	s := new(Service)
 	s.relays = make(map[string]Relay)
 

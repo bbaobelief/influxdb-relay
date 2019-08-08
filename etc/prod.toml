@@ -1,0 +1,15 @@
+[[http]]
+name = "example-http"
+bind-addr = "127.0.0.1:9096"
+output = [
+    { name="local1", location = "http://10.111.101.129:8086/write" },
+]
+
+[[udp]]
+name = "example-udp"
+bind-addr = "127.0.0.1:9096"
+read-buffer = 0 # default
+output = [
+    { name="local1", location="127.0.0.1:8089", mtu=512 },
+    { name="local2", location="127.0.0.1:7089", mtu=1024 },
+]

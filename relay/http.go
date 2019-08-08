@@ -15,8 +15,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/influxdata/influxdb/models"
+	"influxdb-relay/config"
+	"github.com/influxdata/influxdb1-client/models"
 )
 
 // HTTP is a relay for HTTP influxdb writes
@@ -43,7 +43,7 @@ const (
 	MB = 1024 * KB
 )
 
-func NewHTTP(cfg HTTPConfig) (Relay, error) {
+func NewHTTP(cfg config.HTTPConfig) (Relay, error) {
 	h := new(HTTP)
 
 	h.addr = cfg.Addr
@@ -114,9 +114,9 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
 	if r.URL.Path == "/ping" && (r.Method == "GET" || r.Method == "HEAD") {
-			w.Header().Add("X-InfluxDB-Version", "relay")
-			w.WriteHeader(http.StatusNoContent)
-			return
+		w.Header().Add("X-InfluxDB-Version", "relay")
+		w.WriteHeader(http.StatusNoContent)
+		return
 	}
 
 	if r.URL.Path != "/write" {
@@ -352,7 +352,7 @@ type httpBackend struct {
 	name string
 }
 
-func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
+func newHTTPBackend(cfg *config.HTTPOutputConfig) (*httpBackend, error) {
 	if cfg.Name == "" {
 		cfg.Name = cfg.Location
 	}

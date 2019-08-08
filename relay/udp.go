@@ -8,8 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/influxdata/influxdb/models"
+	"influxdb-relay/config"
+	"github.com/influxdata/influxdb1-client/models"
 )
 
 const (
@@ -29,7 +29,7 @@ type UDP struct {
 	backends []*udpBackend
 }
 
-func NewUDP(config UDPConfig) (Relay, error) {
+func NewUDP(config config.UDPConfig) (Relay, error) {
 	u := new(UDP)
 
 	u.name = config.Name

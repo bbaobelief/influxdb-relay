@@ -7,7 +7,8 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/influxdata/influxdb-relay/relay"
+	"influxdb-relay/config"
+	"influxdb-relay/relay"
 )
 
 var (
@@ -23,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfg, err := relay.LoadConfigFile(*configFile)
+	cfg, err := config.LoadConfigFile(*configFile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Problem loading config file:", err)
 	}
