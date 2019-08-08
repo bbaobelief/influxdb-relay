@@ -13,3 +13,11 @@ output = [
     { name="local1", location="127.0.0.1:8089", mtu=512 },
     { name="local2", location="127.0.0.1:7089", mtu=1024 },
 ]
+
+[[opentsdb]]
+name = "opentsdb-tcp"
+bind-addr = "127.0.0.1:14242"
+output = [
+    { name="local1", location="127.0.0.1:8089", timeout=5 },
+    { name="local2", location="127.0.0.1:7089", timeout=10 },
+]

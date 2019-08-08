@@ -7,6 +7,12 @@ import (
 	"influxdb-relay/config"
 )
 
+type Relay interface {
+	Name() string
+	Run() error
+	Stop() error
+}
+
 type Service struct {
 	relays map[string]Relay
 }
@@ -37,6 +43,18 @@ func New(config config.Config) (*Service, error) {
 		s.relays[u.Name()] = u
 	}
 
+	for _, cfg := range config.OpentsdbRelays {
+		g, err := NewOpentsdbRelay(cfg)
+		if err != nil {
+			return nil, err
+		}
+		if s.relays[g.Name()] != nil {
+			return nil, fmt.Errorf("duplicate relay: %q", g.Name())
+		}
+		s.relays[g.Name()] = g
+
+	}
+
 	return s, nil
 }
 
@@ -60,12 +78,7 @@ func (s *Service) Run() {
 
 func (s *Service) Stop() {
 	for _, v := range s.relays {
+		fmt.Println(v)
 		v.Stop()
 	}
-}
-
-type Relay interface {
-	Name() string
-	Run() error
-	Stop() error
 }

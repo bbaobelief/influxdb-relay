@@ -9,6 +9,7 @@ import (
 type Config struct {
 	HTTPRelays []HTTPConfig `toml:"http"`
 	UDPRelays  []UDPConfig  `toml:"udp"`
+	OpentsdbRelays []OpentsdbConfig `toml:"opentsdb"`
 }
 
 type HTTPConfig struct {
@@ -81,6 +82,24 @@ type UDPOutputConfig struct {
 	// MTU sets the maximum output payload size, default is 1024
 	MTU int `toml:"mtu"`
 }
+
+type OpentsdbConfig struct {
+	Name string `toml:"name"`
+
+	Addr string `toml:"bind-addr"`
+
+	Outputs []OpentsdbOutputConfig `toml:"output"`
+}
+
+type OpentsdbOutputConfig struct {
+	Name string `toml:"name"`
+
+	Location string `toml:"location"`
+
+	Timeout int `toml:"timeout"`
+}
+
+
 
 // LoadConfigFile parses the specified file into a Config object
 func LoadConfigFile(filename string) (cfg Config, err error) {
