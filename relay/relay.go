@@ -78,7 +78,6 @@ func (s *Service) Run() {
 
 func (s *Service) Stop() {
 	for _, v := range s.relays {
-		fmt.Println(v)
 		v.Stop()
 	}
 }
