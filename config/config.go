@@ -89,16 +89,15 @@ type OpentsdbConfig struct {
 	Addr string `toml:"bind-addr"`
 
 	Outputs []OpentsdbOutputConfig `toml:"output"`
+
 }
 
 type OpentsdbOutputConfig struct {
 	Name string `toml:"name"`
-
 	Location string `toml:"location"`
-
+	MaxConns int `toml:"maxConns"`
 	Timeout int `toml:"timeout"`
 }
-
 
 
 // LoadConfigFile parses the specified file into a Config object

@@ -1,7 +1,6 @@
 [[opentsdb]]
 name = "opentsdb-tcp"
-bind-addr = "127.0.0.1:14242"
+bind-addr = "127.0.0.1:9096"
 output = [
-    { name="local1", location="127.0.0.1:8089", timeout=5 },
-    { name="local2", location="127.0.0.1:7089", timeout=10 },
+    { name="influxdb-01", location="10.111.101.129:14242", maxConns=10, timeout=1000, },
 ]
