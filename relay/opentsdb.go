@@ -3,6 +3,7 @@ package relay
 import (
 	"bufio"
 	"fmt"
+	cpool "github.com/silenceper/pool"
 	"influxdb-relay/config"
 	"log"
 	"net"
@@ -15,15 +16,12 @@ const (
 )
 
 type OpentsdbRelay struct {
-	addr string
-	name string
-
+	addr   string
+	name   string
 	schema string
 
-	closing int64
-	l       net.Listener
-	c       *net.TCPConn
-
+	closing  int64
+	l        net.Listener
 	backends []*telnetBackend
 }
 
@@ -36,9 +34,7 @@ func (g *OpentsdbRelay) Name() string {
 }
 
 func (t *OpentsdbRelay) Run() error {
-
 	log.Printf("Starting Opentsdb relay %q on %v", t.Name(), t.addr)
-
 	for {
 		conn, err := t.l.Accept()
 		if err != nil {
@@ -51,7 +47,6 @@ func (t *OpentsdbRelay) Run() error {
 		}
 
 		log.Printf("A client connected: " + conn.RemoteAddr().String())
-
 		go t.Receive(conn)
 	}
 }
@@ -60,7 +55,7 @@ func (t *OpentsdbRelay) Run() error {
 func (t *OpentsdbRelay) Receive(conn net.Conn) {
 	ipAddr := conn.RemoteAddr().String()
 	defer func() {
-		fmt.Println("disconnected :" + ipAddr)
+		log.Fatalf("disconnected :" + ipAddr)
 		_ = conn.Close()
 	}()
 
@@ -121,6 +116,12 @@ func NewOpentsdbRelay(cfg config.OpentsdbConfig) (Relay, error) {
 	return t, nil
 }
 
+// todo backend
+type telnetBackend struct {
+	name string
+	pool cpool.Pool
+}
+
 func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) {
 	if cfg.Name == "" {
 		cfg.Name = cfg.Location
@@ -135,29 +136,38 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 		timeout = t
 	}
 
-	_, err := net.ResolveTCPAddr("tcp", cfg.Location)
+	factoryFun := func() (interface{}, error) { return net.Dial("tcp", cfg.Location) }
+
+	closeFun := func(v interface{}) error { return v.(net.Conn).Close() }
+
+	poolConfig := &cpool.Config{
+		InitialCap:  cfg.InitConns,
+		MaxCap:      cfg.MaxConns,
+		Factory:     factoryFun,
+		Close:       closeFun,
+		IdleTimeout: timeout,
+	}
+
+	p, err := cpool.NewChannelPool(poolConfig)
 	if err != nil {
 		return nil, err
 	}
-
-	conn, err := net.DialTimeout("tcp", cfg.Location, timeout)
-	if err != nil {
-		return nil, err
-	}
-
 	return &telnetBackend{
-		cli:  conn,
 		name: cfg.Name,
+		pool: p,
 	}, nil
 }
 
-type telnetBackend struct {
-	cli  net.Conn
-	name string
-}
-
 func (b *telnetBackend) post(data string) error {
-	var err error
-	_, err = b.cli.Write([]byte(data))
+	fmt.Printf("A %d", b.pool.Len())
+
+	v, err := b.pool.Get()
+
+	fmt.Println("B %d", b.pool.Len())
+	conn := v.(net.Conn)
+	_, err = conn.Write([]byte(data))
+
+	fmt.Println("C %d", b.pool.Len())
+
 	return err
 }
