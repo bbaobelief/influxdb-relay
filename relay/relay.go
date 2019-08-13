@@ -2,9 +2,9 @@ package relay
 
 import (
 	"fmt"
+	"influxdb-relay/config"
 	"log"
 	"sync"
-	"influxdb-relay/config"
 )
 
 type Relay interface {

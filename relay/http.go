@@ -6,6 +6,8 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/influxdata/influxdb1-client/models"
+	"influxdb-relay/config"
 	"io/ioutil"
 	"log"
 	"net"
@@ -15,8 +17,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"influxdb-relay/config"
-	"github.com/influxdata/influxdb1-client/models"
 )
 
 // HTTP is a relay for HTTP influxdb writes

@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	defaultTimeout       = 10 //* time.Second
-	defaultTelnetTimeout = 10 //* time.Second
+	defaultTelnetTimeout = 10 * time.Second
 )
 
 type OpentsdbRelay struct {
@@ -128,86 +127,37 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 	}
 
 	timeout := defaultTelnetTimeout
-	//if cfg.Timeout != "" {
-	//	t, err := time.ParseDuration(cfg.Timeout)
-	//	if err != nil {
-	//		return nil, fmt.Errorf("error parsing HTTP timeout '%v'", err)
-	//	}
-	//	timeout = t
-	//}
-
-	//p := newTelnetPoster(cfg.Location, timeout)
+	if cfg.Timeout != "" {
+		t, err := time.ParseDuration(cfg.Timeout)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing Telnet timeout '%v'", err)
+		}
+		timeout = t
+	}
 
 	_, err := net.ResolveTCPAddr("tcp", cfg.Location)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := net.DialTimeout("tcp", cfg.Location, time.Duration(timeout)*time.Second)
+	conn, err := net.DialTimeout("tcp", cfg.Location, timeout)
 	if err != nil {
 		return nil, err
 	}
 
 	return &telnetBackend{
-		cli: conn,
-		name:   cfg.Name,
+		cli:  conn,
+		name: cfg.Name,
 	}, nil
 }
 
 type telnetBackend struct {
-	cli    net.Conn
-	name   string
+	cli  net.Conn
+	name string
 }
-
-//func newTelnetPoster(location string, timeout int) *telnetPoster {
-//	_, err := net.ResolveTCPAddr("tcp", location)
-//	if err != nil {
-//		return nil
-//	}
-//
-//	conn, err := net.DialTimeout("tcp", location, time.Duration(timeout)*time.Second)
-//	if err != nil {
-//		return nil
-//	}
-//
-//	//conn, err := net.DialTCP("tcp", nil, b.addr)
-//	//if err == nil {
-//	//	_, err = conn.Write([]byte(data))
-//	//}
-//
-//	return &telnetPoster{
-//		client:   conn,
-//		location: location,
-//	}
-//}
-
-//type telnetPoster struct {
-//	client   net.Conn
-//	location string
-//}
-
-//func (telnetPoster) post([]byte, string, string) (*responseData, error) {
-//	panic("implement me")
-//}
 
 func (b *telnetBackend) post(data string) error {
 	var err error
-
-	fmt.Println(data)
-	//for len(data) > b.mtu {
-	//	// find the last line that will fit within the MTU
-	//	idx := bytes.LastIndexByte(data[:b.mtu], '\n')
-	//	if idx < 0 {
-	//		// first line is larger than MTU
-	//		return errPacketTooLarge
-	//	}
-	//	_, err = b.u.c.WriteToUDP(data[:idx+1], b.addr)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	data = data[idx+1:]
-	//}
-	//
-	//_, err = b.u.c.WriteToUDP(data, b.addr)
+	_, err = b.cli.Write([]byte(data))
 	return err
 }

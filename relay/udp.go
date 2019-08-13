@@ -3,13 +3,13 @@ package relay
 import (
 	"bytes"
 	"errors"
+	"github.com/influxdata/influxdb1-client/models"
+	"influxdb-relay/config"
 	"log"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
-	"influxdb-relay/config"
-	"github.com/influxdata/influxdb1-client/models"
 )
 
 const (

@@ -7,8 +7,8 @@ import (
 )
 
 type Config struct {
-	HTTPRelays []HTTPConfig `toml:"http"`
-	UDPRelays  []UDPConfig  `toml:"udp"`
+	HTTPRelays     []HTTPConfig     `toml:"http"`
+	UDPRelays      []UDPConfig      `toml:"udp"`
 	OpentsdbRelays []OpentsdbConfig `toml:"opentsdb"`
 }
 
@@ -89,16 +89,14 @@ type OpentsdbConfig struct {
 	Addr string `toml:"bind-addr"`
 
 	Outputs []OpentsdbOutputConfig `toml:"output"`
-
 }
 
 type OpentsdbOutputConfig struct {
-	Name string `toml:"name"`
+	Name     string `toml:"name"`
 	Location string `toml:"location"`
-	MaxConns int `toml:"maxConns"`
-	Timeout int `toml:"timeout"`
+	MaxConns int    `toml:"maxConns"`
+	Timeout  string `toml:"timeout"`
 }
-
 
 // LoadConfigFile parses the specified file into a Config object
 func LoadConfigFile(filename string) (cfg Config, err error) {
