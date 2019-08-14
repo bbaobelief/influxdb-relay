@@ -22,6 +22,7 @@ type OpentsdbRelay struct {
 
 	closing  int64
 	l        net.Listener
+
 	backends []*telnetBackend
 }
 
@@ -55,8 +56,8 @@ func (t *OpentsdbRelay) Run() error {
 func (t *OpentsdbRelay) Receive(conn net.Conn) {
 	ipAddr := conn.RemoteAddr().String()
 	defer func() {
-		log.Fatalf("disconnected :" + ipAddr)
-		_ = conn.Close()
+		log.Printf("disconnected: %s", ipAddr)
+		conn.Close()
 	}()
 
 	reader := bufio.NewReader(conn)
@@ -65,6 +66,7 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 		if err != nil {
 			return
 		}
+		fmt.Println(message)
 		t.Send(message)
 	}
 }
@@ -159,15 +161,15 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 }
 
 func (b *telnetBackend) post(data string) error {
-	fmt.Printf("A %d", b.pool.Len())
+	//fmt.Printf("A %d", b.pool.Len())
 
 	v, err := b.pool.Get()
 
-	fmt.Println("B %d", b.pool.Len())
+	//fmt.Println("B %d", b.pool.Len())
 	conn := v.(net.Conn)
 	_, err = conn.Write([]byte(data))
 
-	fmt.Println("C %d", b.pool.Len())
-
+	//fmt.Println("C %d", b.pool.Len())
+	b.pool.Put(v)
 	return err
 }
