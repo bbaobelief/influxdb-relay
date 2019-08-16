@@ -92,11 +92,11 @@ type OpentsdbConfig struct {
 }
 
 type OpentsdbOutputConfig struct {
-	Name      string `toml:"name"`
-	Location  string `toml:"location"`
-	MaxConns  int    `toml:"maxConns"`
-	InitConns int    `toml:"initConns"`
-	Timeout   string `toml:"timeout"`
+	Name        string `toml:"name"`
+	Location    string `toml:"location"`
+	MaxCap      int    `toml:"maxCap"`
+	InitCap     int    `toml:"initCap"`
+	IdleTimeout string `toml:"idleTimeout"`
 }
 
 // LoadConfigFile parses the specified file into a Config object

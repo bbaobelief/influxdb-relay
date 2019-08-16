@@ -3,7 +3,7 @@ package relay
 import (
 	"bufio"
 	"fmt"
-	cpool "github.com/silenceper/pool"
+	"influxdb-relay/common/pool"
 	"influxdb-relay/config"
 	"log"
 	"net"
@@ -11,8 +11,11 @@ import (
 	"time"
 )
 
-const (
-	defaultTelnetTimeout = 10 * time.Second
+var (
+	DialTimeout  = 5 * time.Second
+	IdleTimeout  = 60 * time.Second
+	ReadTimeout  = 5 * time.Second
+	WriteTimeout = 5 * time.Second
 )
 
 type OpentsdbRelay struct {
@@ -20,8 +23,8 @@ type OpentsdbRelay struct {
 	name   string
 	schema string
 
-	closing  int64
-	l        net.Listener
+	closing int64
+	l       net.Listener
 
 	backends []*telnetBackend
 }
@@ -35,19 +38,19 @@ func (g *OpentsdbRelay) Name() string {
 }
 
 func (t *OpentsdbRelay) Run() error {
-	log.Printf("Starting Opentsdb relay %q on %v", t.Name(), t.addr)
+	log.Printf("INFO Starting opentsdb relay %q on %v", t.Name(), t.addr)
 	for {
 		conn, err := t.l.Accept()
 		if err != nil {
 			if atomic.LoadInt64(&t.closing) == 0 {
-				log.Printf("Error reading packet in relay %q from %v: %v", t.name, conn.RemoteAddr().String(), err)
+				log.Printf("ERROR reading packet in relay %q from %v: %v", t.name, conn.RemoteAddr().String(), err)
 			} else {
 				err = nil
 			}
 			return err
 		}
 
-		log.Printf("A client connected: " + conn.RemoteAddr().String())
+		log.Printf("INFO transfer connected: " + conn.RemoteAddr().String())
 		go t.Receive(conn)
 	}
 }
@@ -56,8 +59,8 @@ func (t *OpentsdbRelay) Run() error {
 func (t *OpentsdbRelay) Receive(conn net.Conn) {
 	ipAddr := conn.RemoteAddr().String()
 	defer func() {
-		log.Printf("disconnected: %s", ipAddr)
-		conn.Close()
+		log.Printf("WARN transfer disconnected: %s", ipAddr)
+		_ = conn.Close()
 	}()
 
 	reader := bufio.NewReader(conn)
@@ -66,7 +69,7 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 		if err != nil {
 			return
 		}
-		fmt.Println(message)
+
 		t.Send(message)
 	}
 }
@@ -121,7 +124,7 @@ func NewOpentsdbRelay(cfg config.OpentsdbConfig) (Relay, error) {
 // todo backend
 type telnetBackend struct {
 	name string
-	pool cpool.Pool
+	pool *pool.TCPPool
 }
 
 func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) {
@@ -129,31 +132,30 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 		cfg.Name = cfg.Location
 	}
 
-	timeout := defaultTelnetTimeout
-	if cfg.Timeout != "" {
-		t, err := time.ParseDuration(cfg.Timeout)
+	if cfg.IdleTimeout != "" {
+		t, err := time.ParseDuration(cfg.IdleTimeout)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing Telnet timeout '%v'", err)
 		}
-		timeout = t
+		IdleTimeout = t
 	}
 
-	factoryFun := func() (interface{}, error) { return net.Dial("tcp", cfg.Location) }
-
-	closeFun := func(v interface{}) error { return v.(net.Conn).Close() }
-
-	poolConfig := &cpool.Config{
-		InitialCap:  cfg.InitConns,
-		MaxCap:      cfg.MaxConns,
-		Factory:     factoryFun,
-		Close:       closeFun,
-		IdleTimeout: timeout,
+	options := &pool.Options{
+		InitTargets:  []string{cfg.Location},
+		InitCap:      cfg.InitCap,
+		MaxCap:       cfg.MaxCap,
+		DialTimeout:  DialTimeout,
+		IdleTimeout:  IdleTimeout,
+		ReadTimeout:  ReadTimeout,
+		WriteTimeout: WriteTimeout,
 	}
 
-	p, err := cpool.NewChannelPool(poolConfig)
+	p, err := pool.NewTCPPool(options)
+
 	if err != nil {
-		return nil, err
+		log.Printf("%#v\n", err)
 	}
+
 	return &telnetBackend{
 		name: cfg.Name,
 		pool: p,
@@ -161,15 +163,20 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 }
 
 func (b *telnetBackend) post(data string) error {
-	//fmt.Printf("A %d", b.pool.Len())
+	fmt.Printf("%s: %#v | %s \n", b.name, b.pool.Len(), data)
 
 	v, err := b.pool.Get()
+	if err != nil {
+		return err
+	}
 
-	//fmt.Println("B %d", b.pool.Len())
 	conn := v.(net.Conn)
 	_, err = conn.Write([]byte(data))
+	if err != nil {
+		_, err = b.pool.Get()
+		return err
+	}
 
-	//fmt.Println("C %d", b.pool.Len())
-	b.pool.Put(v)
+	err = b.pool.Put(v)
 	return err
 }

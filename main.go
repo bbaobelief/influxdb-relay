@@ -42,6 +42,6 @@ func main() {
 		r.Stop()
 	}()
 
-	log.Println("starting relays...")
+	log.Println("INFO starting relays...")
 	r.Run()
 }
