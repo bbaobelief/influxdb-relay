@@ -50,6 +50,18 @@ func (c *TCPPool) Get() (net.Conn, error) {
 				return nil, err
 			}
 
+			// todo 空闲连接小于10
+			if c.Len() <= 1 {
+				for i := 0; i < 10; i++ {
+					conn, err := c.factory()
+					if err != nil {
+						c.Close()
+						return nil, err
+					}
+					c.conns <- &tcpIdleConn{conn: conn, t: time.Now()}
+				}
+			}
+
 			return conn, nil
 		}
 	}
@@ -141,7 +153,6 @@ func NewTCPPool(o *Options) (*TCPPool, error) {
 
 	return pool, nil
 }
-
 
 func (c *TCPPool) getConns() chan *tcpIdleConn {
 	c.Mu.Lock()

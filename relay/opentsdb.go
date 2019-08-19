@@ -31,7 +31,7 @@ type OpentsdbRelay struct {
 
 func (g *OpentsdbRelay) Name() string {
 	if g.name == "" {
-		return fmt.Sprintf("%s://%s", g.schema, g.addr)
+		return fmt.Sprintf("INFO %s://%s", g.schema, g.addr)
 	}
 
 	return g.name
@@ -43,14 +43,14 @@ func (t *OpentsdbRelay) Run() error {
 		conn, err := t.l.Accept()
 		if err != nil {
 			if atomic.LoadInt64(&t.closing) == 0 {
-				log.Printf("ERROR reading packet in relay %q from %v: %v", t.name, conn.RemoteAddr().String(), err)
+				log.Printf("ERROR Reading packet in relay %q from %v: %v", t.name, conn.RemoteAddr().String(), err)
 			} else {
 				err = nil
 			}
 			return err
 		}
 
-		log.Printf("INFO transfer connected: " + conn.RemoteAddr().String())
+		log.Printf("INFO Transfer connected: " + conn.RemoteAddr().String())
 		go t.Receive(conn)
 	}
 }
@@ -59,7 +59,7 @@ func (t *OpentsdbRelay) Run() error {
 func (t *OpentsdbRelay) Receive(conn net.Conn) {
 	ipAddr := conn.RemoteAddr().String()
 	defer func() {
-		log.Printf("WARN transfer disconnected: %s", ipAddr)
+		log.Printf("WARN Transfer disconnected: %s", ipAddr)
 		_ = conn.Close()
 	}()
 
@@ -78,7 +78,7 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 func (t *OpentsdbRelay) Send(s string) {
 	for _, b := range t.backends {
 		if err := b.post(s); err != nil {
-			log.Printf("Error writing points in relay %q to backend %q: %v", t.Name(), b.name, err)
+			log.Printf("ERROR Writing points in relay %q to backend %q: %v", t.Name(), b.name, err)
 		}
 	}
 }
@@ -135,7 +135,7 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 	if cfg.IdleTimeout != "" {
 		t, err := time.ParseDuration(cfg.IdleTimeout)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing Telnet timeout '%v'", err)
+			return nil, fmt.Errorf("ERROR Parsing Telnet timeout '%v'", err)
 		}
 		IdleTimeout = t
 	}
@@ -153,7 +153,7 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 	p, err := pool.NewTCPPool(options)
 
 	if err != nil {
-		log.Printf("%#v\n", err)
+		log.Fatalf("ERROR %s %s\n", cfg.Name, err)
 	}
 
 	return &telnetBackend{
@@ -163,7 +163,6 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 }
 
 func (b *telnetBackend) post(data string) error {
-	fmt.Printf("%s: %#v | %s \n", b.name, b.pool.Len(), data)
 
 	v, err := b.pool.Get()
 	if err != nil {
