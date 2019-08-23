@@ -3,9 +3,9 @@ package relay
 import (
 	"bufio"
 	"fmt"
+	"influxdb-relay/common/log"
 	"influxdb-relay/common/pool"
 	"influxdb-relay/config"
-	"log"
 	"net"
 	"sync/atomic"
 	"time"
@@ -38,19 +38,19 @@ func (g *OpentsdbRelay) Name() string {
 }
 
 func (t *OpentsdbRelay) Run() error {
-	log.Printf("INFO Starting opentsdb relay %q on %v", t.Name(), t.addr)
+	log.Info.Printf("INFO Starting opentsdb relay %q on %v", t.Name(), t.addr)
 	for {
 		conn, err := t.l.Accept()
 		if err != nil {
 			if atomic.LoadInt64(&t.closing) == 0 {
-				log.Printf("ERROR Reading packet in relay %q from %v: %v", t.name, conn.RemoteAddr().String(), err)
+				log.Error.Printf("ERROR Reading packet in relay %q from %v: %v", t.name, conn.RemoteAddr().String(), err)
 			} else {
 				err = nil
 			}
 			return err
 		}
 
-		log.Printf("INFO Transfer connected: " + conn.RemoteAddr().String())
+		log.Info.Printf("INFO Transfer connected: " + conn.RemoteAddr().String())
 		go t.Receive(conn)
 	}
 }
@@ -59,7 +59,7 @@ func (t *OpentsdbRelay) Run() error {
 func (t *OpentsdbRelay) Receive(conn net.Conn) {
 	ipAddr := conn.RemoteAddr().String()
 	defer func() {
-		log.Printf("WARN Transfer disconnected: %s", ipAddr)
+		log.Warning.Printf("WARN Transfer disconnected: %s", ipAddr)
 		_ = conn.Close()
 	}()
 
@@ -78,7 +78,7 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 func (t *OpentsdbRelay) Send(s string) {
 	for _, b := range t.backends {
 		if err := b.post(s); err != nil {
-			log.Printf("ERROR Writing points in relay %q to backend %q: %v", t.Name(), b.name, err)
+			log.Error.Printf("ERROR Writing points in relay %q to backend %q: %v", t.Name(), b.name, err)
 		}
 	}
 }
@@ -153,7 +153,7 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 	p, err := pool.NewTCPPool(options)
 
 	if err != nil {
-		log.Fatalf("ERROR %s %s\n", cfg.Name, err)
+		log.Error.Fatalf("ERROR %s %s\n", cfg.Name, err)
 	}
 
 	return &telnetBackend{

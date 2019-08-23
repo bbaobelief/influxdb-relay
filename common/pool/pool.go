@@ -55,7 +55,7 @@ func (c *TCPPool) Get() (net.Conn, error) {
 				for i := 0; i < 10; i++ {
 					conn, err := c.factory()
 					if err != nil {
-						c.Close()
+						c.close(conn)
 						return nil, err
 					}
 					c.conns <- &tcpIdleConn{conn: conn, t: time.Now()}

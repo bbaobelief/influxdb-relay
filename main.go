@@ -2,13 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"log"
-	"os"
-	"os/signal"
-
+	"influxdb-relay/common/log"
 	"influxdb-relay/config"
 	"influxdb-relay/relay"
+	"os"
+	"os/signal"
 )
 
 var (
@@ -19,19 +17,19 @@ func main() {
 	flag.Parse()
 
 	if *configFile == "" {
-		fmt.Fprintln(os.Stderr, "Missing configuration file")
+		log.Error.Println("Missing configuration file")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
 	cfg, err := config.LoadConfigFile(*configFile)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Problem loading config file:", err)
+		log.Error.Println("Problem loading config file:", err)
 	}
 
 	r, err := relay.New(cfg)
 	if err != nil {
-		log.Fatal(err)
+		log.Error.Fatal(err)
 	}
 
 	sigChan := make(chan os.Signal, 1)
@@ -42,6 +40,6 @@ func main() {
 		r.Stop()
 	}()
 
-	log.Println("INFO starting relays...")
+	log.Info.Println("INFO starting relays...")
 	r.Run()
 }
