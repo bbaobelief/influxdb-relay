@@ -3,7 +3,7 @@ package relay
 import (
 	"bufio"
 	"fmt"
-	"influxdb-relay/common/heartbeat"
+	//"influxdb-relay/common/heartbeat"
 	"influxdb-relay/common/log"
 	"influxdb-relay/common/pool"
 	"influxdb-relay/config"
@@ -26,7 +26,7 @@ type OpentsdbRelay struct {
 	schema string
 
 	closing int64
-	l       net.Listener
+	l       *net.TCPListener
 
 	backends []*telnetBackend
 }
@@ -42,7 +42,7 @@ func (g *OpentsdbRelay) Name() string {
 func (t *OpentsdbRelay) Run() error {
 	log.Info.Printf("INFO Starting opentsdb relay %q on %v", t.Name(), t.addr)
 	for {
-		conn, err := t.l.Accept()
+		conn, err := t.l.AcceptTCP()
 		if err != nil {
 			if atomic.LoadInt64(&t.closing) == 0 {
 				log.Error.Printf("ERROR Reading packet in relay %q from %v: %v", t.name, conn.RemoteAddr().String(), err)
@@ -51,6 +51,9 @@ func (t *OpentsdbRelay) Run() error {
 			}
 			return err
 		}
+
+		conn.SetKeepAlive(true)
+		conn.SetKeepAlivePeriod(15 * time.Second)
 
 		log.Info.Printf("INFO Transfer connected: " + conn.RemoteAddr().String())
 		go t.Receive(conn)
@@ -74,10 +77,10 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 		}
 
 		// 发送数据至influxdb backend
-		go t.Send(message)
+		t.Send(message)
 
 		// 心跳计时
-		go heartbeat.HeartBeating(conn, message, DeadlineTimeout)
+		// heartbeat.HeartBeating(conn, message, DeadlineTimeout)
 
 	}
 }
@@ -85,6 +88,7 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 // 使用opentsdb协议发送数据至后端influxdb
 func (t *OpentsdbRelay) Send(s string) {
 	for _, b := range t.backends {
+
 		if err := b.post(s); err != nil {
 			log.Error.Printf("ERROR Writing points in relay %q to backend %q: %v", t.Name(), b.name, err)
 		}
@@ -104,7 +108,12 @@ func NewOpentsdbRelay(cfg config.OpentsdbConfig) (Relay, error) {
 
 	t.schema = "tcp"
 
-	listener, err := net.Listen("tcp", t.addr)
+	laddr, err := net.ResolveTCPAddr("tcp", t.addr)
+	if err != nil {
+		return nil, err
+	}
+
+	listener, err := net.ListenTCP("tcp", laddr)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +189,6 @@ func (b *telnetBackend) post(data string) error {
 	conn := v.(net.Conn)
 	_, err = conn.Write([]byte(data))
 	if err != nil {
-		_, err = b.pool.Get()
 		return err
 	}
 
