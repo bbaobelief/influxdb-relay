@@ -3,6 +3,7 @@ package relay
 import (
 	"bufio"
 	"fmt"
+	"influxdb-relay/common/heartbeat"
 	"influxdb-relay/common/log"
 	"influxdb-relay/common/pool"
 	"influxdb-relay/config"
@@ -12,10 +13,11 @@ import (
 )
 
 var (
-	DialTimeout  = 5 * time.Second
-	IdleTimeout  = 60 * time.Second
-	ReadTimeout  = 5 * time.Second
-	WriteTimeout = 5 * time.Second
+	DialTimeout     = 5 * time.Second
+	IdleTimeout     = 60 * time.Second
+	ReadTimeout     = 5 * time.Second
+	WriteTimeout    = 5 * time.Second
+	DeadlineTimeout = 30 * time.Second
 )
 
 type OpentsdbRelay struct {
@@ -63,6 +65,7 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 		_ = conn.Close()
 	}()
 
+	//messnager := make(chan byte)
 	reader := bufio.NewReader(conn)
 	for {
 		message, err := reader.ReadString('\n')
@@ -70,7 +73,12 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 			return
 		}
 
-		t.Send(message)
+		// 发送数据至influxdb backend
+		go t.Send(message)
+
+		// 心跳计时
+		go heartbeat.HeartBeating(conn, message, DeadlineTimeout)
+
 	}
 }
 
@@ -163,7 +171,7 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 }
 
 func (b *telnetBackend) post(data string) error {
-
+	fmt.Printf("%s: %d \n", b.name, b.pool.Len())
 	v, err := b.pool.Get()
 	if err != nil {
 		return err
