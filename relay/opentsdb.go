@@ -104,12 +104,15 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 	//messnager := make(chan byte)
 	reader := bufio.NewReader(conn)
 	for {
-		buf, err := reader.ReadBytes('\n')
+		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			return
 		}
 
-		line := strings.TrimSpace(string(buf))
+		//line := strings.TrimSpace(string(buf))
+		b := strings.ContainsRune(string(line), '\n')
+		fmt.Println(b) // false
+		//fmt.Printf("%#v", line)
 
 
 		// 发送数据至influxdb backend
@@ -122,10 +125,10 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 }
 
 // 使用opentsdb协议发送数据至后端influxdb
-func (t *OpentsdbRelay) Send(s string) {
+func (t *OpentsdbRelay) Send(data []byte) {
 	for _, b := range t.backends {
 
-		if err := b.post(s); err != nil {
+		if err := b.post(data); err != nil {
 			log.Error.Printf("ERROR Writing points in relay %q to backend %q: %v", t.Name(), b.name, err)
 		}
 	}
@@ -177,15 +180,15 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 	}, nil
 }
 
-func (b *telnetBackend) post(data string) error {
-	fmt.Printf("%s: %d %s\n", b.name, b.pool.Len(), data)
+func (b *telnetBackend) post(data []byte) error {
+	// fmt.Printf("%s: %d %s\n", b.name, b.pool.Len(), data)
 	v, err := b.pool.Get()
 	if err != nil {
 		return err
 	}
 
 	conn := v.(net.Conn)
-	_, err = conn.Write([]byte(data))
+	_, err = conn.Write(data)
 	if err != nil {
 		return err
 	}
