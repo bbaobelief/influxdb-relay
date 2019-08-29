@@ -2,8 +2,8 @@ package relay
 
 import (
 	"fmt"
-	"influxdb-relay/common/log"
 	"influxdb-relay/config"
+	"influxdb-relay/common/log"
 	"sync"
 )
 

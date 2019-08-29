@@ -3,6 +3,8 @@ package relay
 import (
 	"bufio"
 	"fmt"
+	"strings"
+
 	//"influxdb-relay/common/heartbeat"
 	"influxdb-relay/common/log"
 	"influxdb-relay/common/pool"
@@ -21,28 +23,59 @@ var (
 )
 
 type OpentsdbRelay struct {
-	addr   string
-	name   string
-	schema string
+	addr     string
+	name     string
+	protocol string
 
 	closing int64
-	l       *net.TCPListener
+	ln      net.Listener
 
 	backends []*telnetBackend
 }
 
 func (g *OpentsdbRelay) Name() string {
 	if g.name == "" {
-		return fmt.Sprintf("INFO %s://%s", g.schema, g.addr)
+		return fmt.Sprintf("INFO tcp://%s", g.addr)
 	}
 
 	return g.name
 }
 
+func NewOpentsdbRelay(cfg config.OpentsdbConfig) (Relay, error) {
+	t := new(OpentsdbRelay)
+
+	t.addr = cfg.Addr
+	t.name = cfg.Name
+
+	ln, err := net.Listen("tcp", t.addr)
+	if err != nil {
+		return nil, err
+	}
+
+	t.ln = ln
+
+	// 连接influxdb后端
+	for i := range cfg.Outputs {
+		cfg := &cfg.Outputs[i]
+		if cfg.Name == "" {
+			cfg.Name = cfg.Location
+		}
+
+		backend, err := newTelnetBackend(cfg)
+		if err != nil {
+			return nil, err
+		}
+
+		t.backends = append(t.backends, backend)
+	}
+
+	return t, nil
+}
+
 func (t *OpentsdbRelay) Run() error {
 	log.Info.Printf("INFO Starting opentsdb relay %q on %v", t.Name(), t.addr)
 	for {
-		conn, err := t.l.AcceptTCP()
+		conn, err := t.ln.Accept()
 		if err != nil {
 			if atomic.LoadInt64(&t.closing) == 0 {
 				log.Error.Printf("ERROR Reading packet in relay %q from %v: %v", t.name, conn.RemoteAddr().String(), err)
@@ -52,8 +85,8 @@ func (t *OpentsdbRelay) Run() error {
 			return err
 		}
 
-		conn.SetKeepAlive(true)
-		conn.SetKeepAlivePeriod(15 * time.Second)
+		//conn.SetKeepAlive(true)
+		//conn.SetKeepAlivePeriod(15 * time.Second)
 
 		log.Info.Printf("INFO Transfer connected: " + conn.RemoteAddr().String())
 		go t.Receive(conn)
@@ -71,13 +104,16 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 	//messnager := make(chan byte)
 	reader := bufio.NewReader(conn)
 	for {
-		message, err := reader.ReadString('\n')
+		buf, err := reader.ReadBytes('\n')
 		if err != nil {
 			return
 		}
 
+		line := strings.TrimSpace(string(buf))
+
+
 		// 发送数据至influxdb backend
-		t.Send(message)
+		t.Send(line)
 
 		// 心跳计时
 		// heartbeat.HeartBeating(conn, message, DeadlineTimeout)
@@ -97,45 +133,7 @@ func (t *OpentsdbRelay) Send(s string) {
 
 func (t *OpentsdbRelay) Stop() error {
 	atomic.StoreInt64(&t.closing, 1)
-	return t.l.Close()
-}
-
-func NewOpentsdbRelay(cfg config.OpentsdbConfig) (Relay, error) {
-	t := new(OpentsdbRelay)
-
-	t.addr = cfg.Addr
-	t.name = cfg.Name
-
-	t.schema = "tcp"
-
-	laddr, err := net.ResolveTCPAddr("tcp", t.addr)
-	if err != nil {
-		return nil, err
-	}
-
-	listener, err := net.ListenTCP("tcp", laddr)
-	if err != nil {
-		return nil, err
-	}
-
-	t.l = listener
-
-	// 连接influxdb后端
-	for i := range cfg.Outputs {
-		cfg := &cfg.Outputs[i]
-		if cfg.Name == "" {
-			cfg.Name = cfg.Location
-		}
-
-		backend, err := newTelnetBackend(cfg)
-		if err != nil {
-			return nil, err
-		}
-
-		t.backends = append(t.backends, backend)
-	}
-
-	return t, nil
+	return t.ln.Close()
 }
 
 // todo backend
@@ -180,7 +178,7 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 }
 
 func (b *telnetBackend) post(data string) error {
-	fmt.Printf("%s: %d \n", b.name, b.pool.Len())
+	fmt.Printf("%s: %d %s\n", b.name, b.pool.Len(), data)
 	v, err := b.pool.Get()
 	if err != nil {
 		return err
