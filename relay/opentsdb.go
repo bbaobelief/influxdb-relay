@@ -3,9 +3,6 @@ package relay
 import (
 	"bufio"
 	"fmt"
-	"strings"
-
-	//"influxdb-relay/common/heartbeat"
 	"influxdb-relay/common/log"
 	"influxdb-relay/common/pool"
 	"influxdb-relay/config"
@@ -85,9 +82,6 @@ func (t *OpentsdbRelay) Run() error {
 			return err
 		}
 
-		//conn.SetKeepAlive(true)
-		//conn.SetKeepAlivePeriod(15 * time.Second)
-
 		log.Info.Printf("INFO Transfer connected: " + conn.RemoteAddr().String())
 		go t.Receive(conn)
 	}
@@ -101,26 +95,15 @@ func (t *OpentsdbRelay) Receive(conn net.Conn) {
 		_ = conn.Close()
 	}()
 
-	//messnager := make(chan byte)
 	reader := bufio.NewReader(conn)
 	for {
-		line, err := reader.ReadBytes('\n')
+		line, err := reader.ReadString('\n')
 		if err != nil {
 			return
 		}
 
-		//line := strings.TrimSpace(string(buf))
-		b := strings.ContainsRune(string(line), '\n')
-		fmt.Println(b) // false
-		//fmt.Printf("%#v", line)
-
-
-		// 发送数据至influxdb backend
-		t.Send(line)
-
-		// 心跳计时
-		// heartbeat.HeartBeating(conn, message, DeadlineTimeout)
-
+		// 发送数据至backend
+		t.Send([]byte(line))
 	}
 }
 
@@ -181,7 +164,7 @@ func newTelnetBackend(cfg *config.OpentsdbOutputConfig) (*telnetBackend, error) 
 }
 
 func (b *telnetBackend) post(data []byte) error {
-	// fmt.Printf("%s: %d %s\n", b.name, b.pool.Len(), data)
+	//fmt.Printf("%s: %d %s\n", b.name, b.pool.Len(), data)
 	v, err := b.pool.Get()
 	if err != nil {
 		return err
