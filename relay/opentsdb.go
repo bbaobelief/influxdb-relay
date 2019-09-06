@@ -48,7 +48,7 @@ type OpenTSDB struct {
 
 func (g *OpenTSDB) Name() string {
 	if g.name == "" {
-		return fmt.Sprintf("INFO tcp://%s", g.addr)
+		return fmt.Sprintf("INFO tcp://%s \n", g.addr)
 	}
 
 	return g.name
@@ -95,7 +95,7 @@ func (t *OpenTSDB) Run() error {
 			return err
 		}
 
-		fmt.Printf("INFO Transfer connected: " + conn.RemoteAddr().String())
+		fmt.Printf("INFO Transfer connected: \n" + conn.RemoteAddr().String())
 
 		go t.handleConn(conn)
 	}
@@ -136,7 +136,7 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 func (t *OpenTSDB) Send(data []byte) {
 	for _, b := range t.backends {
 		if err := b.post(data); err != nil {
-			log.Printf("ERROR Writing points in relay %q to backend %q: %v", t.Name(), b.name, err)
+			log.Printf("ERROR Writing points in relay %q to backend %q: %v \n", t.Name(), b.name, err)
 		}
 	}
 }
@@ -166,7 +166,7 @@ func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
 	if cfg.DelayInterval != "" {
 		i, err := time.ParseDuration(cfg.DelayInterval)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing tcp delay interval '%v'", err)
+			return nil, fmt.Errorf("error parsing tcp delay interval '%v' \n", err)
 		}
 		interval = i
 	}
@@ -175,7 +175,7 @@ func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
 	if cfg.DialTimeout != "" {
 		d, err := time.ParseDuration(cfg.DialTimeout)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing tcp dial timeout '%v'", err)
+			return nil, fmt.Errorf("error parsing tcp dial timeout '%v' \n", err)
 		}
 		dialTimeout = d
 	}
@@ -185,7 +185,7 @@ func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
 	p, err := pool.NewChannelPool(cfg.InitCap, cfg.MaxCap, factory)
 
 	if err != nil {
-		log.Fatalf("ERROR Creating InfluxDB Client: %s", err)
+		log.Fatalf("ERROR Creating InfluxDB Client: %s \n", err)
 	}
 
 	tb := &telnetBackend{
@@ -227,7 +227,7 @@ func (t *telnetBackend) CheckActive() {
 		_, err := t.Ping()
 		if err != nil {
 			t.Active = false
-			log.Printf("%s inactive.", t.name)
+			log.Printf("%s inactive. \n", t.name)
 		} else {
 			t.Active = true
 		}
@@ -242,7 +242,7 @@ func (t *telnetBackend) Ping() (version string, err error) {
 
 	conn, err := net.DialTimeout("tcp", t.Location, t.DialTimeout)
 	if err != nil {
-		log.Println("tcp ping error: ", err)
+		log.Println("tcp ping error: \n", err)
 		return
 	}
 
