@@ -2,6 +2,6 @@
 name = "opentsdb-tcp"
 bind-addr = "127.0.0.1:9096"
 output = [
-    { name="influxdb-24242", location="127.0.0.1:24242", initCap=5, maxCap=30, idleTimeout="60m"},
-    { name="influxdb-14242", location="127.0.0.1:14242", initCap=10, maxCap=30, idleTimeout="60m"},
+    { name="influxdb-24242", location="127.0.0.1:24242", init-cap=5, max-cap=30, idle-timeout="60m"},
+    { name="influxdb-14242", location="127.0.0.1:14242", init-cap=10, max-cap=30, idle-timeout="60m"},
 ]

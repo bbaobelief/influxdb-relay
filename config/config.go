@@ -96,11 +96,19 @@ type TSDBonfig struct {
 }
 
 type TSDBOutputConfig struct {
-	Name        string `toml:"name"`
-	Location    string `toml:"location"`
-	MaxCap      int    `toml:"maxCap"`
-	InitCap     int    `toml:"initCap"`
-	IdleTimeout string `toml:"idleTimeout"`
+	Name     string `toml:"name"`
+
+	Location string `toml:"location"`
+
+	MaxCap      int    `toml:"max-cap"`
+
+	InitCap     int    `toml:"init-cap"`
+
+	IdleTimeout string `toml:"idle-timeout"`
+
+	DialTimeout string `toml:"dial-timeout"`
+
+	DelayInterval string `toml:"delay-interval"`
 }
 
 // LoadConfigFile parses the specified file into a Config object

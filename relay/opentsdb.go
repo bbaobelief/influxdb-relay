@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-
 	//"influxdb-relay/common/log"
 	//"influxdb-relay/common/pool"
 	"gopkg.in/fatih/pool.v3"
@@ -17,13 +16,23 @@ import (
 	"time"
 )
 
-var (
-	DialTimeout     = 5 * time.Second
-	IdleTimeout     = 60 * time.Second
-	ReadTimeout     = 5 * time.Second
-	WriteTimeout    = 5 * time.Second
-	DeadlineTimeout = 30 * time.Second
+const (
+	//DefaultTimeout      = 10 * time.Second
+	DefaultInterval    = 5 * time.Second
+	DefaultDialTimeout = 5 * time.Second
+	//DefaultBatchSizeKB      = 512
+
+	//KB = 1024
+	//MB = 1024 * KB
 )
+
+//var (
+//	DialTimeout     = 5 * time.Second
+//	IdleTimeout     = 60 * time.Second
+//	ReadTimeout     = 5 * time.Second
+//	WriteTimeout    = 5 * time.Second
+//	DeadlineTimeout = 30 * time.Second
+//)
 
 type OpenTSDB struct {
 	addr      string
@@ -140,8 +149,12 @@ func (t *OpenTSDB) Stop() error {
 
 // todo backend
 type telnetBackend struct {
-	name string
-	pool pool.Pool
+	name        string
+	pool        pool.Pool
+	Active      bool
+	Location    string
+	DialTimeout time.Duration
+	Ticker      *time.Ticker
 }
 
 func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
@@ -149,18 +162,44 @@ func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
 		cfg.Name = cfg.Location
 	}
 
+	interval := DefaultInterval
+	if cfg.DelayInterval != "" {
+		i, err := time.ParseDuration(cfg.DelayInterval)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing tcp delay interval '%v'", err)
+		}
+		interval = i
+	}
+
+	dialTimeout := DefaultDialTimeout
+	if cfg.DialTimeout != "" {
+		d, err := time.ParseDuration(cfg.DialTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing tcp dial timeout '%v'", err)
+		}
+		dialTimeout = d
+	}
+
 	factory := func() (net.Conn, error) { return net.Dial("tcp", cfg.Location) }
 
-	p, err := pool.NewChannelPool(5, 30, factory)
+	p, err := pool.NewChannelPool(cfg.InitCap, cfg.MaxCap, factory)
 
 	if err != nil {
 		log.Fatalf("ERROR Creating InfluxDB Client: %s", err)
 	}
 
-	return &telnetBackend{
-		name: cfg.Name,
-		pool: p,
-	}, nil
+	tb := &telnetBackend{
+		name:        cfg.Name,
+		pool:        p,
+		Active:      true,
+		Location:    cfg.Location,
+		DialTimeout: dialTimeout,
+		Ticker:      time.NewTicker(interval),
+	}
+
+	go tb.CheckActive()
+
+	return tb, nil
 }
 
 func (b *telnetBackend) post(data []byte) error {
@@ -170,12 +209,44 @@ func (b *telnetBackend) post(data []byte) error {
 		return err
 	}
 
-	conn := v.(net.Conn)
-	_, err = conn.Write(data)
+	if b.IsActive() {
+
+		conn := v.(net.Conn)
+		_, err = conn.Write(data)
+		if err != nil {
+			return err
+		}
+
+		_ = v.Close()
+	}
+	return err
+}
+
+func (t *telnetBackend) CheckActive() {
+	for range t.Ticker.C {
+		_, err := t.Ping()
+		if err != nil {
+			t.Active = false
+			log.Printf("%s inactive.", t.name)
+		} else {
+			t.Active = true
+		}
+	}
+}
+
+func (t *telnetBackend) IsActive() bool {
+	return t.Active
+}
+
+func (t *telnetBackend) Ping() (version string, err error) {
+
+	conn, err := net.DialTimeout("tcp", t.Location, t.DialTimeout)
 	if err != nil {
-		return err
+		log.Println("tcp ping error: ", err)
+		return
 	}
 
-	_ = v.Close()
-	return err
+	defer conn.Close()
+
+	return
 }
