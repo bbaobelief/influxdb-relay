@@ -7,9 +7,9 @@ import (
 )
 
 type Config struct {
-	HTTPRelays     []HTTPConfig     `toml:"http"`
-	UDPRelays      []UDPConfig      `toml:"udp"`
-	OpentsdbRelays []OpentsdbConfig `toml:"opentsdb"`
+	HTTPRelays []HTTPConfig `toml:"http"`
+	UDPRelays  []UDPConfig  `toml:"udp"`
+	TSDBRelays []TSDBonfig  `toml:"opentsdb"`
 }
 
 type HTTPConfig struct {
@@ -83,15 +83,19 @@ type UDPOutputConfig struct {
 	MTU int `toml:"mtu"`
 }
 
-type OpentsdbConfig struct {
+type TSDBonfig struct {
 	Name string `toml:"name"`
 
 	Addr string `toml:"bind-addr"`
 
-	Outputs []OpentsdbOutputConfig `toml:"output"`
+	Precision string `toml:"precision"`
+
+	ReadBuffer int `toml:"read-buffer"`
+
+	Outputs []TSDBOutputConfig `toml:"output"`
 }
 
-type OpentsdbOutputConfig struct {
+type TSDBOutputConfig struct {
 	Name        string `toml:"name"`
 	Location    string `toml:"location"`
 	MaxCap      int    `toml:"maxCap"`

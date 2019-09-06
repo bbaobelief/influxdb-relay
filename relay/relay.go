@@ -43,8 +43,8 @@ func New(config config.Config) (*Service, error) {
 		s.relays[u.Name()] = u
 	}
 
-	for _, cfg := range config.OpentsdbRelays {
-		g, err := NewOpentsdbRelay(cfg)
+	for _, cfg := range config.TSDBRelays {
+		g, err := NewTSDBRelay(cfg)
 		if err != nil {
 			return nil, err
 		}
