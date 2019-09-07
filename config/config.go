@@ -96,13 +96,13 @@ type TSDBonfig struct {
 }
 
 type TSDBOutputConfig struct {
-	Name     string `toml:"name"`
+	Name string `toml:"name"`
 
 	Location string `toml:"location"`
 
-	MaxCap      int    `toml:"max-cap"`
+	MaxCap int `toml:"max-cap"`
 
-	InitCap     int    `toml:"init-cap"`
+	InitCap int `toml:"init-cap"`
 
 	IdleTimeout string `toml:"idle-timeout"`
 

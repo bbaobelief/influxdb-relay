@@ -2,12 +2,10 @@ package relay
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
-	"gopkg.in/fatih/pool.v3"
+	"influxdb-relay/common/log"
 	"influxdb-relay/config"
 	"io"
-	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -72,7 +70,7 @@ func NewTSDBRelay(cfg config.TSDBonfig) (Relay, error) {
 }
 
 func (t *OpenTSDB) Run() error {
-	log.Printf("INFO Starting opentsdb relay %q on %v \n", t.Name(), t.addr)
+	log.Info.Printf("INFO Starting opentsdb relay %q on %v \n", t.Name(), t.addr)
 
 	for {
 		conn, err := t.ln.Accept()
@@ -80,36 +78,42 @@ func (t *OpenTSDB) Run() error {
 			return err
 		}
 
-		fmt.Printf("INFO Transfer connected: \n" + conn.RemoteAddr().String())
+		log.Info.Printf("INFO Transfer connected: %v \n", conn.RemoteAddr().String())
 
 		go t.handleConn(conn)
 	}
 }
 
-type readerConn struct {
-	net.Conn
-	r io.Reader
-}
+//type readerConn struct {
+//	net.Conn
+//	r io.Reader
+//}
+
+//func (t *OpenTSDB) handleConn(conn net.Conn) {
+//	var buf bytes.Buffer
+//	bufr := bufio.NewReader(io.MultiReader(&buf, conn))
+//	conn = &readerConn{Conn: conn, r: bufr}
+//
+//	t.wg.Add(1)
+//	t.handleTelnetConn(conn)
+//	t.wg.Done()
+//}
 
 func (t *OpenTSDB) handleConn(conn net.Conn) {
-	var buf bytes.Buffer
-	bufr := bufio.NewReader(io.MultiReader(&buf, conn))
-	conn = &readerConn{Conn: conn, r: bufr}
+	ipAddr := conn.RemoteAddr().String()
 
-	t.wg.Add(1)
-	t.handleTelnetConn(conn)
-	t.wg.Done()
-}
-
-func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
-	defer conn.Close()
+	defer func() {
+		log.Warning.Printf("WARN Transfer disconnected: %s", ipAddr)
+		_ = conn.Close()
+	}()
 
 	reader := bufio.NewReader(conn)
 	for {
+
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err != io.EOF {
-				fmt.Printf("ERROR reading from OpenTSDB connection %v", err)
+				log.Info.Printf("ERROR Reading from OpenTSDB connection %v \n", err)
 			}
 			return
 		}
@@ -118,121 +122,45 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 	}
 }
 
-func (t *OpenTSDB) Send(data []byte) {
-	for _, b := range t.backends {
-		if err := b.post(data); err != nil {
-			log.Printf("ERROR Writing points in relay %q to backend %q: %v \n", t.Name(), b.name, err)
-		}
+func (t *OpenTSDB) Send(line []byte) {
+	var wg sync.WaitGroup
+
+	if len(line) == 0 {
+		return
 	}
+
+	for _, b := range t.backends {
+		if !b.Active || b == nil {
+			continue
+		}
+		wg.Add(1)
+		go func(b *telnetBackend) {
+			defer wg.Done()
+
+			v, err := b.Pool.Get()
+			if err != nil {
+				return
+			}
+
+			conn := v.(net.Conn)
+			_, err = conn.Write(line)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			_ = v.Close()
+
+			log.Info.Printf("write to %s done", b.Name)
+		}(b)
+
+	}
+
+	wg.Wait()
+
 }
 
 func (t *OpenTSDB) Stop() error {
 	atomic.StoreInt64(&t.closing, 1)
-	//t.wg.Wait()
 	return t.ln.Close()
-}
-
-// todo backend
-type telnetBackend struct {
-	name        string
-	pool        pool.Pool
-	Active      bool
-	Location    string
-	DialTimeout time.Duration
-	Ticker      *time.Ticker
-}
-
-func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
-	if cfg.Name == "" {
-		cfg.Name = cfg.Location
-	}
-
-	interval := DefaultInterval
-	if cfg.DelayInterval != "" {
-		i, err := time.ParseDuration(cfg.DelayInterval)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing tcp delay interval '%v' \n", err)
-		}
-		interval = i
-	}
-
-	dialTimeout := DefaultDialTimeout
-	if cfg.DialTimeout != "" {
-		d, err := time.ParseDuration(cfg.DialTimeout)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing tcp dial timeout '%v' \n", err)
-		}
-		dialTimeout = d
-	}
-
-	factory := func() (net.Conn, error) { return net.Dial("tcp", cfg.Location) }
-
-	p, err := pool.NewChannelPool(cfg.InitCap, cfg.MaxCap, factory)
-
-	if err != nil {
-		log.Fatalf("ERROR Creating InfluxDB Client: %s \n", err)
-	}
-
-	tb := &telnetBackend{
-		name:        cfg.Name,
-		pool:        p,
-		Active:      true,
-		Location:    cfg.Location,
-		DialTimeout: dialTimeout,
-		Ticker:      time.NewTicker(interval),
-	}
-
-	go tb.CheckActive()
-
-	return tb, nil
-}
-
-func (b *telnetBackend) post(data []byte) error {
-	v, err := b.pool.Get()
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("%s: %d %v %v \n", b.name, b.pool.Len(), b.IsActive(), v)
-
-	if b.IsActive() {
-
-		conn := v.(net.Conn)
-		_, err = conn.Write(data)
-		if err != nil {
-			return err
-		}
-
-		_ = v.Close()
-	}
-	return err
-}
-
-func (t *telnetBackend) CheckActive() {
-	for range t.Ticker.C {
-		_, err := t.Ping()
-		if err != nil {
-			t.Active = false
-			log.Printf("%s inactive. \n", t.name)
-		} else {
-			t.Active = true
-		}
-	}
-}
-
-func (t *telnetBackend) IsActive() bool {
-	return t.Active
-}
-
-func (t *telnetBackend) Ping() (version string, err error) {
-
-	conn, err := net.DialTimeout("tcp", t.Location, t.DialTimeout)
-	if err != nil {
-		//log.Println("tcp ping error: \n", err)
-		return
-	}
-
-	defer conn.Close()
-
-	return
 }
