@@ -4,12 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"log"
-	//"influxdb-relay/common/log"
-	//"influxdb-relay/common/pool"
 	"gopkg.in/fatih/pool.v3"
 	"influxdb-relay/config"
 	"io"
+	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -17,22 +15,9 @@ import (
 )
 
 const (
-	//DefaultTimeout      = 10 * time.Second
 	DefaultInterval    = 5 * time.Second
 	DefaultDialTimeout = 5 * time.Second
-	//DefaultBatchSizeKB      = 512
-
-	//KB = 1024
-	//MB = 1024 * KB
 )
-
-//var (
-//	DialTimeout     = 5 * time.Second
-//	IdleTimeout     = 60 * time.Second
-//	ReadTimeout     = 5 * time.Second
-//	WriteTimeout    = 5 * time.Second
-//	DeadlineTimeout = 30 * time.Second
-//)
 
 type OpenTSDB struct {
 	addr      string
@@ -87,7 +72,7 @@ func NewTSDBRelay(cfg config.TSDBonfig) (Relay, error) {
 }
 
 func (t *OpenTSDB) Run() error {
-	log.Printf("INFO Starting opentsdb relay %q on %v", t.Name(), t.addr)
+	log.Printf("INFO Starting opentsdb relay %q on %v \n", t.Name(), t.addr)
 
 	for {
 		conn, err := t.ln.Accept()
@@ -124,7 +109,7 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err != io.EOF {
-				fmt.Println("ERROR reading from OpenTSDB connection", err)
+				fmt.Printf("ERROR reading from OpenTSDB connection %v", err)
 			}
 			return
 		}
@@ -203,11 +188,12 @@ func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
 }
 
 func (b *telnetBackend) post(data []byte) error {
-	//fmt.Printf("%s: %d %s\n", b.name, b.pool.Len(), data)
 	v, err := b.pool.Get()
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("%s: %d %v %v \n", b.name, b.pool.Len(), b.IsActive(), v)
 
 	if b.IsActive() {
 
@@ -242,7 +228,7 @@ func (t *telnetBackend) Ping() (version string, err error) {
 
 	conn, err := net.DialTimeout("tcp", t.Location, t.DialTimeout)
 	if err != nil {
-		log.Println("tcp ping error: \n", err)
+		//log.Println("tcp ping error: \n", err)
 		return
 	}
 
