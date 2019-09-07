@@ -84,21 +84,6 @@ func (t *OpenTSDB) Run() error {
 	}
 }
 
-//type readerConn struct {
-//	net.Conn
-//	r io.Reader
-//}
-
-//func (t *OpenTSDB) handleConn(conn net.Conn) {
-//	var buf bytes.Buffer
-//	bufr := bufio.NewReader(io.MultiReader(&buf, conn))
-//	conn = &readerConn{Conn: conn, r: bufr}
-//
-//	t.wg.Add(1)
-//	t.handleTelnetConn(conn)
-//	t.wg.Done()
-//}
-
 func (t *OpenTSDB) handleConn(conn net.Conn) {
 	ipAddr := conn.RemoteAddr().String()
 
