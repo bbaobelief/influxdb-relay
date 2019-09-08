@@ -18,13 +18,11 @@ const (
 )
 
 type OpenTSDB struct {
-	addr      string
-	name      string
-	precision string
+	addr string
+	name string
 
 	closing int64
 	ln      net.Listener
-	wg      sync.WaitGroup
 
 	backends []*telnetBackend
 }
@@ -42,7 +40,6 @@ func NewTSDBRelay(cfg config.TSDBonfig) (Relay, error) {
 
 	t.addr = cfg.Addr
 	t.name = cfg.Name
-	t.precision = cfg.Precision
 
 	listener, err := net.Listen("tcp", t.addr)
 	if err != nil {
@@ -136,13 +133,12 @@ func (t *OpenTSDB) Send(line []byte) {
 
 			_ = v.Close()
 
-			log.Info.Printf("write to %s done", b.Name)
+			//log.Info.Printf("write to %s done", b.Name)
 		}(b)
 
 	}
 
 	wg.Wait()
-
 }
 
 func (t *OpenTSDB) Stop() error {

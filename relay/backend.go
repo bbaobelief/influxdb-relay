@@ -10,12 +10,11 @@ import (
 )
 
 type telnetBackend struct {
-	Name        string
 	Pool        pool.Pool
 	Active      bool
-	Location    string
 	DialTimeout time.Duration
 	Ticker      *time.Ticker
+	Cfg         *config.TSDBOutputConfig
 }
 
 func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
@@ -50,10 +49,9 @@ func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
 	}
 
 	tb := &telnetBackend{
-		Name:        cfg.Name,
+		Cfg:         cfg,
 		Pool:        p,
 		Active:      true,
-		Location:    cfg.Location,
 		DialTimeout: dialTimeout,
 		Ticker:      time.NewTicker(interval),
 	}
@@ -65,10 +63,10 @@ func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
 
 func (t *telnetBackend) CheckActive() {
 	for range t.Ticker.C {
-		_, err := t.Ping()
+		err := t.Ping()
 		if err != nil {
 			t.Active = false
-			log.Printf("%s inactive. \n", t.Name)
+			log.Printf("%s inactive, %s. \n", t.Cfg.Name, err)
 		} else {
 			t.Active = true
 		}
@@ -79,11 +77,22 @@ func (t *telnetBackend) IsActive() bool {
 	return t.Active
 }
 
-func (t *telnetBackend) Ping() (version string, err error) {
+func (t *telnetBackend) Ping() (err error) {
+	conn, err := net.DialTimeout("tcp", t.Cfg.Location, t.DialTimeout)
 
-	conn, err := net.DialTimeout("tcp", t.Location, t.DialTimeout)
 	if err != nil {
+		t.Pool.Close()
 		return
+	} else {
+		factory := func() (net.Conn, error) { return net.Dial("tcp", t.Cfg.Location) }
+
+		p, err := pool.NewChannelPool(t.Cfg.InitCap, t.Cfg.MaxCap, factory)
+
+		if err != nil {
+			log.Printf("ERROR Creating InfluxDB Client: %s \n", err)
+		}
+
+		t.Pool = p
 	}
 
 	defer conn.Close()
