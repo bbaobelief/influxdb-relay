@@ -94,7 +94,8 @@ func (t *OpenTSDB) handleConn(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
 
-		line, err := reader.ReadString('\n')
+		//line, err := reader.ReadString('\n')
+		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err != io.EOF {
 				log.Info.Printf("ERROR Reading from OpenTSDB connection %v \n", err)
@@ -102,8 +103,8 @@ func (t *OpenTSDB) handleConn(conn net.Conn) {
 			return
 		}
 
-		lineStr := tsdb_to_line(line)
-		t.Send(lineStr)
+		//lineStr := tsdb_to_line(line)
+		t.Send(line)
 	}
 }
 
