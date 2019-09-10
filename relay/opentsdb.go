@@ -146,7 +146,7 @@ func tsdb_to_line(lineStr string) []byte {
 	}
 
 	if items["method"] != "" && metricStr != "" && items["ts"] != "" && items["value"] != "" {
-		itemStr := fmt.Sprintf("%s %s %s %s %s", items["method"], metricStr, items["ts"], items["value"], items["tags"])
+		itemStr := fmt.Sprintf("%s %s %s %s %s \n", items["method"], metricStr, items["ts"], items["value"], items["tags"])
 		return []byte(itemStr)
 	}
 	return nil
