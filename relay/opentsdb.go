@@ -103,8 +103,6 @@ func (t *OpenTSDB) handleConn(conn net.Conn) {
 		}
 
 		lineStr := tsdb_to_line(line)
-
-		fmt.Printf("Send: %#v", lineStr)
 		t.Send(lineStr)
 	}
 }
@@ -158,7 +156,6 @@ func (t *OpenTSDB) Send(line []byte) {
 	var wg sync.WaitGroup
 
 	if len(line) == 0 {
-		fmt.Println(333333333)
 		return
 	}
 
