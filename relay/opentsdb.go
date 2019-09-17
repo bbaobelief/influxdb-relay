@@ -176,7 +176,7 @@ func (t *OpenTSDB) Send(line []byte) {
 			conn := v.(net.Conn)
 			_, err = conn.Write(line)
 			if err != nil {
-				fmt.Println(err)
+				log.Warning.Println(err)
 				return
 			}
 
