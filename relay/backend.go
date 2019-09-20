@@ -81,7 +81,8 @@ func (t *telnetBackend) Ping() (err error) {
 	conn, err := net.DialTimeout("tcp", t.Cfg.Location, t.DialTimeout)
 
 	if err != nil {
-		t.Pool.Close()
+		//t.Pool.Close()
+		log.Printf("ERROR %s \n", err)
 		return
 	} else {
 		factory := func() (net.Conn, error) { return net.Dial("tcp", t.Cfg.Location) }
