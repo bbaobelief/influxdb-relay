@@ -3,6 +3,7 @@ package relay
 import (
 	"fmt"
 	"gopkg.in/fatih/pool.v3"
+	rlog "influxdb-relay/common/log"
 	"influxdb-relay/config"
 	"log"
 	"net"
@@ -66,7 +67,7 @@ func (t *telnetBackend) CheckActive() {
 		err := t.Ping()
 		if err != nil {
 			t.Active = false
-			log.Printf("%s inactive, %s. \n", t.Cfg.Name, err)
+			rlog.Error.Printf("%s inactive, %s. \n", t.Cfg.Name, err)
 		} else {
 			t.Active = true
 		}
@@ -81,8 +82,8 @@ func (t *telnetBackend) Ping() (err error) {
 	conn, err := net.DialTimeout("tcp", t.Cfg.Location, t.DialTimeout)
 
 	if err != nil {
-		//t.Pool.Close()
-		log.Printf("ERROR %s \n", err)
+		t.Pool.Close()
+		rlog.Error.Printf("ERROR %s \n", err)
 		return
 	} else {
 		factory := func() (net.Conn, error) { return net.Dial("tcp", t.Cfg.Location) }
@@ -90,7 +91,7 @@ func (t *telnetBackend) Ping() (err error) {
 		p, err := pool.NewChannelPool(t.Cfg.InitCap, t.Cfg.MaxCap, factory)
 
 		if err != nil {
-			log.Printf("ERROR Creating InfluxDB Client: %s \n", err)
+			rlog.Error.Printf("ERROR Creating InfluxDB Client: %s \n", err)
 		}
 
 		t.Pool = p
@@ -100,3 +101,7 @@ func (t *telnetBackend) Ping() (err error) {
 
 	return
 }
+
+func (t *telnetBackend) Len() int { return t.Pool.Len() }
+
+func (t *telnetBackend) Close() { t.Pool.Close() }

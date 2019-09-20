@@ -7,8 +7,6 @@ import (
 	"influxdb-relay/config"
 	"io"
 	"net"
-	"regexp"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -94,7 +92,6 @@ func (t *OpenTSDB) handleConn(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
 
-		//line, err := reader.ReadString('\n')
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err != io.EOF {
@@ -103,55 +100,10 @@ func (t *OpenTSDB) handleConn(conn net.Conn) {
 			return
 		}
 
-		//lineStr := tsdb_to_line(line)
 		t.Send(line)
 	}
 }
 
-// put g1 old generation.gc.count 1567743820 -1.000 jmxport=8888 endpoint=tx1-inf-base-kafka01.us01
-// put consul.monitor.count 1567748657 1.000 evnet=consul.serf.snapshot.appendLine.count monitortag=consul_monitor endpoint=tx3-ops-influxdb01.bj project=
-// put event.total 1567738055 0.000 endpoint=tx4-cj-base-maidian01.bj = event=cj.link.ua.conn.sample.version project=link.maidian.analysizer
-// 转换非标准opentsdb格式
-func tsdb_to_line(lineStr string) []byte {
-
-	lineStr = strings.TrimRight(lineStr, "= \r\n")
-
-	re := regexp.MustCompile(`(?P<method>(put)) (?P<metric>(.+)) (?P<ts>(\d+)) (?P<value>(-?\d.?\d*)) (?P<tags>(.*))`)
-	match := re.FindStringSubmatch(lineStr)
-
-	items := make(map[string]string)
-
-	for i, name := range re.SubexpNames() {
-		if i != 0 && name != "" && len(match) != 0 {
-			tagStr := []string{}
-			if name == "tags" {
-				tags := strings.Split(match[i], " ")
-				for _, t := range tags {
-					parts := strings.Split(t, "=")
-					if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-						log.Warning.Printf("Malformed tag data tag: %s | %s", t, lineStr)
-						continue
-					}
-					tagStr = append(tagStr, t)
-				}
-			}
-			items[name] = match[i]
-			items["tags"] = strings.Join(tagStr, " ")
-		}
-	}
-
-	metricStr := items["metric"]
-	metric := strings.Split(metricStr, " ")
-	if len(metric) > 1 {
-		metricStr = strings.Join(metric, ".")
-	}
-
-	if items["method"] != "" && metricStr != "" && items["ts"] != "" && items["value"] != "" {
-		itemStr := fmt.Sprintf("%s %s %s %s %s \n", items["method"], metricStr, items["ts"], items["value"], items["tags"])
-		return []byte(itemStr)
-	}
-	return nil
-}
 
 func (t *OpenTSDB) Send(line []byte) {
 	var wg sync.WaitGroup
@@ -180,7 +132,11 @@ func (t *OpenTSDB) Send(line []byte) {
 				return
 			}
 
+
+			fmt.Println(b.Pool.Len())
+			_ = b.Pool.Close
 			_ = v.Close()
+			fmt.Println(b.Pool.Len())
 			//log.Info.Printf("write to %s done", b.Name)
 		}(b)
 
