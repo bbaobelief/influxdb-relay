@@ -38,7 +38,7 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt)
 
 	go func() {
-		log.Info.Println(http.ListenAndServe("localhost:19096", nil))
+		log.Info.Println(http.ListenAndServe(":19096", nil))
 	}()
 
 	go func() {
