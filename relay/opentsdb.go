@@ -125,18 +125,13 @@ func (t *OpenTSDB) Send(line []byte) {
 				return
 			}
 
-			conn := v.(net.Conn)
-			_, err = conn.Write(line)
+			_, err = v.Write(line)
 			if err != nil {
 				log.Warning.Println(err)
 				return
 			}
 
-
-			fmt.Println(b.Pool.Len())
-			_ = b.Pool.Close
 			_ = v.Close()
-			fmt.Println(b.Pool.Len())
 			//log.Info.Printf("write to %s done", b.Name)
 		}(b)
 

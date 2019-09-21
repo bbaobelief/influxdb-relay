@@ -79,28 +79,31 @@ func (t *telnetBackend) IsActive() bool {
 }
 
 func (t *telnetBackend) Ping() (err error) {
-	conn, err := net.DialTimeout("tcp", t.Cfg.Location, t.DialTimeout)
 
+	fmt.Println("start:",t.Cfg.Location,t.Pool.Len())
+
+	v, err := t.Pool.Get()
 	if err != nil {
-		t.Pool.Close()
-		rlog.Error.Printf("ERROR %s \n", err)
+		fmt.Println("a:",t.Pool.Len(), err)
 		return
-	} else {
-		factory := func() (net.Conn, error) { return net.Dial("tcp", t.Cfg.Location) }
-
-		p, err := pool.NewChannelPool(t.Cfg.InitCap, t.Cfg.MaxCap, factory)
-
-		if err != nil {
-			rlog.Error.Printf("ERROR Creating InfluxDB Client: %s \n", err)
-		}
-
-		t.Pool = p
 	}
 
-	defer conn.Close()
+	_, err = v.Write([]byte("ping \n"))
+	if err != nil {
+		fmt.Println("b:",t.Pool.Len(), err)
+		return
+	}
+
+	fmt.Println("get:",t.Pool.Len())
+
+
+	err = v.Close()
+
+	fmt.Println("end:",t.Pool.Len())
 
 	return
 }
+
 
 func (t *telnetBackend) Len() int { return t.Pool.Len() }
 
