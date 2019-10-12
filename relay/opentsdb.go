@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	DefaultRetry       = 3
 	DefaultInterval    = 5 * time.Second
 	DefaultDialTimeout = 5 * time.Second
 )
@@ -104,7 +105,6 @@ func (t *OpenTSDB) handleConn(conn net.Conn) {
 	}
 }
 
-
 func (t *OpenTSDB) Send(line []byte) {
 	var wg sync.WaitGroup
 
@@ -117,18 +117,23 @@ func (t *OpenTSDB) Send(line []byte) {
 			continue
 		}
 
-		//if !b.Active || b == nil {
-		//	time.Sleep(5 * time.Second)
-		//}
 		wg.Add(1)
 		go func(b *telnetBackend) {
 			defer wg.Done()
 
-			err := b.WriteBackend(line)
-			if err != nil {
-				logger.Warning.Printf("WARN retry: %s %s.", b.Cfg.Location, err)
-				time.Sleep(5 * time.Second)
-				err = b.WriteBackend(line)
+			var err error
+			sendOk := false
+			for i := 0; i < b.Retry; i++ {
+				err := b.WriteBackend(line)
+				if err == nil {
+					sendOk = true
+					break
+				}
+				time.Sleep(time.Millisecond * 10)
+			}
+
+			if !sendOk {
+				logger.Error.Println("send influxdb %s fail: %v", b.Cfg.Location, err)
 			}
 
 			return

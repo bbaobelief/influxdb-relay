@@ -12,9 +12,9 @@ import (
 
 type telnetBackend struct {
 	Pool        pool.Pool
-	Active      bool
 	DialTimeout time.Duration
 	Ticker      *time.Ticker
+	Retry       int
 	Cfg         *config.TSDBOutputConfig
 }
 
@@ -41,6 +41,11 @@ func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
 		dialTimeout = d
 	}
 
+	sendRetry := DefaultRetry
+	if cfg.Retry != 0 {
+		sendRetry = cfg.Retry
+	}
+
 	factory := func() (net.Conn, error) { return net.Dial("tcp", cfg.Location) }
 
 	p, err := pool.NewChannelPool(cfg.InitCap, cfg.MaxCap, factory)
@@ -52,8 +57,8 @@ func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
 	tb := &telnetBackend{
 		Cfg:         cfg,
 		Pool:        p,
-		Active:      true,
 		DialTimeout: dialTimeout,
+		Retry:       sendRetry,
 		Ticker:      time.NewTicker(interval),
 	}
 
@@ -66,16 +71,9 @@ func (t *telnetBackend) CheckActive() {
 	for range t.Ticker.C {
 		err := t.Ping()
 		if err != nil {
-			t.Active = false
 			logger.Error.Printf("ERROR %s inactive, %s. \n", t.Cfg.Name, err)
-		} else {
-			t.Active = true
 		}
 	}
-}
-
-func (t *telnetBackend) IsActive() bool {
-	return t.Active
 }
 
 func (t *telnetBackend) Ping() (err error) {
@@ -83,13 +81,13 @@ func (t *telnetBackend) Ping() (err error) {
 
 	v, err := t.Pool.Get()
 	if err != nil {
-		fmt.Println("a:",t.Pool.Len(), err)
+		fmt.Println("a:", t.Pool.Len(), err)
 		return
 	}
 
 	_, err = v.Write([]byte("ping \n"))
 	if err != nil {
-		fmt.Println("b:",t.Pool.Len(), err)
+		fmt.Println("b:", t.Pool.Len(), err)
 		return
 	}
 
@@ -97,14 +95,12 @@ func (t *telnetBackend) Ping() (err error) {
 	return
 }
 
-
 func (t *telnetBackend) Len() int { return t.Pool.Len() }
 
 func (t *telnetBackend) Close() { t.Pool.Close() }
 
 func (t *telnetBackend) WriteBackend(b []byte) (err error) {
 
-	time.Sleep(3 * time.Second)
 	v, err := t.Pool.Get()
 	if err != nil {
 		return
@@ -118,5 +114,5 @@ func (t *telnetBackend) WriteBackend(b []byte) (err error) {
 
 	_ = v.Close()
 
-	return 
+	return
 }
