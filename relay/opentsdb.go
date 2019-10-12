@@ -72,21 +72,23 @@ func (t *OpenTSDB) Run() error {
 
 	for {
 		conn, err := t.ln.Accept()
-		if err != nil {
-			return err
+		if opErr, ok := err.(*net.OpError); ok && !opErr.Temporary() {
+			logger.Info.Println("OpenTSDB TCP listener closed")
+			return opErr
+		} else if err != nil {
+			logger.Error.Println("Error accepting OpenTSDB", err)
+			continue
 		}
-
-		logger.Info.Printf("INFO Transfer connected: %v \n", conn.RemoteAddr().String())
 
 		go t.handleConn(conn)
 	}
 }
 
 func (t *OpenTSDB) handleConn(conn net.Conn) {
-	ipAddr := conn.RemoteAddr().String()
+	//ipAddr := conn.RemoteAddr().String()
 
 	defer func() {
-		logger.Warning.Printf("WARN Transfer disconnected: %s", ipAddr)
+		//logger.Warning.Printf("WARN Transfer disconnected: %s", ipAddr)
 		_ = conn.Close()
 	}()
 
