@@ -3,7 +3,7 @@ package relay
 import (
 	"bufio"
 	"fmt"
-	"influxdb-relay/common/log"
+	logger "influxdb-relay/common/log"
 	"influxdb-relay/config"
 	"io"
 	"net"
@@ -67,7 +67,7 @@ func NewTSDBRelay(cfg config.TSDBonfig) (Relay, error) {
 }
 
 func (t *OpenTSDB) Run() error {
-	log.Info.Printf("INFO Starting opentsdb relay %q on %v \n", t.Name(), t.addr)
+	logger.Info.Printf("INFO Starting opentsdb relay %q on %v \n", t.Name(), t.addr)
 
 	for {
 		conn, err := t.ln.Accept()
@@ -75,7 +75,7 @@ func (t *OpenTSDB) Run() error {
 			return err
 		}
 
-		log.Info.Printf("INFO Transfer connected: %v \n", conn.RemoteAddr().String())
+		logger.Info.Printf("INFO Transfer connected: %v \n", conn.RemoteAddr().String())
 
 		go t.handleConn(conn)
 	}
@@ -85,7 +85,7 @@ func (t *OpenTSDB) handleConn(conn net.Conn) {
 	ipAddr := conn.RemoteAddr().String()
 
 	defer func() {
-		log.Warning.Printf("WARN Transfer disconnected: %s", ipAddr)
+		logger.Warning.Printf("WARN Transfer disconnected: %s", ipAddr)
 		_ = conn.Close()
 	}()
 
@@ -95,7 +95,7 @@ func (t *OpenTSDB) handleConn(conn net.Conn) {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err != io.EOF {
-				log.Info.Printf("ERROR Reading from OpenTSDB connection %v \n", err)
+				logger.Info.Printf("ERROR Reading from OpenTSDB connection %v \n", err)
 			}
 			return
 		}
@@ -113,26 +113,25 @@ func (t *OpenTSDB) Send(line []byte) {
 	}
 
 	for _, b := range t.backends {
-		if !b.Active || b == nil {
+		if b == nil {
 			continue
 		}
+
+		//if !b.Active || b == nil {
+		//	time.Sleep(5 * time.Second)
+		//}
 		wg.Add(1)
 		go func(b *telnetBackend) {
 			defer wg.Done()
 
-			v, err := b.Pool.Get()
+			err := b.WriteBackend(line)
 			if err != nil {
-				return
+				logger.Warning.Printf("WARN retry: %s %s.", b.Cfg.Location, err)
+				time.Sleep(5 * time.Second)
+				err = b.WriteBackend(line)
 			}
 
-			_, err = v.Write(line)
-			if err != nil {
-				log.Warning.Println(err)
-				return
-			}
-
-			_ = v.Close()
-			//log.Info.Printf("write to %s done", b.Name)
+			return
 		}(b)
 
 	}

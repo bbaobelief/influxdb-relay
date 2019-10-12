@@ -3,7 +3,7 @@ package relay
 import (
 	"fmt"
 	"gopkg.in/fatih/pool.v3"
-	rlog "influxdb-relay/common/log"
+	logger "influxdb-relay/common/log"
 	"influxdb-relay/config"
 	"log"
 	"net"
@@ -67,7 +67,7 @@ func (t *telnetBackend) CheckActive() {
 		err := t.Ping()
 		if err != nil {
 			t.Active = false
-			rlog.Error.Printf("%s inactive, %s. \n", t.Cfg.Name, err)
+			logger.Error.Printf("ERROR %s inactive, %s. \n", t.Cfg.Name, err)
 		} else {
 			t.Active = true
 		}
@@ -79,8 +79,7 @@ func (t *telnetBackend) IsActive() bool {
 }
 
 func (t *telnetBackend) Ping() (err error) {
-
-	fmt.Println("start:",t.Cfg.Location,t.Pool.Len())
+	fmt.Println(t.Cfg.Location, t.Pool.Len())
 
 	v, err := t.Pool.Get()
 	if err != nil {
@@ -94,13 +93,7 @@ func (t *telnetBackend) Ping() (err error) {
 		return
 	}
 
-	fmt.Println("get:",t.Pool.Len())
-
-
 	err = v.Close()
-
-	fmt.Println("end:",t.Pool.Len())
-
 	return
 }
 
@@ -108,3 +101,22 @@ func (t *telnetBackend) Ping() (err error) {
 func (t *telnetBackend) Len() int { return t.Pool.Len() }
 
 func (t *telnetBackend) Close() { t.Pool.Close() }
+
+func (t *telnetBackend) WriteBackend(b []byte) (err error) {
+
+	time.Sleep(3 * time.Second)
+	v, err := t.Pool.Get()
+	if err != nil {
+		return
+	}
+
+	_, err = v.Write(b)
+	if err != nil {
+		logger.Warning.Println(err)
+		return
+	}
+
+	_ = v.Close()
+
+	return 
+}
