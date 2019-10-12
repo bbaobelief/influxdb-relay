@@ -85,12 +85,7 @@ func (t *OpenTSDB) Run() error {
 }
 
 func (t *OpenTSDB) handleConn(conn net.Conn) {
-	//ipAddr := conn.RemoteAddr().String()
-
-	defer func() {
-		//logger.Warning.Printf("WARN Transfer disconnected: %s", ipAddr)
-		_ = conn.Close()
-	}()
+	defer conn.Close()
 
 	reader := bufio.NewReader(conn)
 	for {

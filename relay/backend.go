@@ -77,17 +77,14 @@ func (t *telnetBackend) CheckActive() {
 }
 
 func (t *telnetBackend) Ping() (err error) {
-	fmt.Println(t.Cfg.Location, t.Pool.Len())
 
 	v, err := t.Pool.Get()
 	if err != nil {
-		fmt.Println("a:", t.Pool.Len(), err)
 		return
 	}
 
 	_, err = v.Write([]byte("ping \n"))
 	if err != nil {
-		fmt.Println("b:", t.Pool.Len(), err)
 		return
 	}
 
