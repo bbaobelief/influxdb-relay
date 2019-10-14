@@ -12,12 +12,6 @@ import (
 	"time"
 )
 
-const (
-	DefaultRetry       = 3
-	DefaultInterval    = 5 * time.Second
-	DefaultDialTimeout = 5 * time.Second
-)
-
 type OpenTSDB struct {
 	addr string
 	name string
@@ -93,7 +87,7 @@ func (t *OpenTSDB) handleConn(conn net.Conn) {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err != io.EOF {
-				logger.Info.Printf("ERROR Reading from OpenTSDB connection %v \n", err)
+				logger.Error.Printf("ERROR Reading from OpenTSDB connection %v \n", err)
 			}
 			return
 		}
@@ -120,7 +114,7 @@ func (t *OpenTSDB) Send(line []byte) {
 
 			var err error
 			sendOk := false
-			for i := 0; i < b.Retry; i++ {
+			for i := 0; i < b.Cfg.Retry; i++ {
 				err := b.WriteBackend(line)
 				if err == nil {
 					sendOk = true
@@ -130,7 +124,7 @@ func (t *OpenTSDB) Send(line []byte) {
 			}
 
 			if !sendOk {
-				logger.Error.Println("send influxdb %s fail: %v", b.Cfg.Location, err)
+				logger.Error.Println("ERROR send influxdb %s fail: %v", b.Cfg.Location, err)
 			}
 
 			return

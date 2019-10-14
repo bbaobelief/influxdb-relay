@@ -104,13 +104,7 @@ type TSDBOutputConfig struct {
 
 	InitCap int `toml:"init-cap"`
 
-	Retry int `toml:"retry"`
-
-	IdleTimeout string `toml:"idle-timeout"`
-
-	DialTimeout string `toml:"dial-timeout"`
-
-	DelayInterval string `toml:"delay-interval"`
+	Retry int `toml:"fail-retry"`
 }
 
 // LoadConfigFile parses the specified file into a Config object
