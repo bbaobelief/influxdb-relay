@@ -1,15 +1,12 @@
 package relay
 
 import (
-	"bufio"
 	"fmt"
 	logger "influxdb-relay/common/log"
 	"influxdb-relay/config"
 	"io"
 	"net"
-	"sync"
 	"sync/atomic"
-	"time"
 )
 
 type OpenTSDB struct {
@@ -67,10 +64,10 @@ func (t *OpenTSDB) Run() error {
 	for {
 		conn, err := t.ln.Accept()
 		if opErr, ok := err.(*net.OpError); ok && !opErr.Temporary() {
-			logger.Info.Println("OpenTSDB TCP listener closed")
+			logger.Info.Println("INFO Opentsdb tcp listener closed")
 			return opErr
 		} else if err != nil {
-			logger.Error.Println("Error accepting OpenTSDB", err)
+			logger.Error.Println("ERROR accepting OpenTSDB", err)
 			continue
 		}
 
@@ -81,59 +78,67 @@ func (t *OpenTSDB) Run() error {
 func (t *OpenTSDB) handleConn(conn net.Conn) {
 	defer conn.Close()
 
-	reader := bufio.NewReader(conn)
-	for {
-
-		line, err := reader.ReadBytes('\n')
-		if err != nil {
-			if err != io.EOF {
-				logger.Error.Printf("ERROR Reading from OpenTSDB connection %v \n", err)
-			}
-			return
-		}
-
-		t.Send(line)
-	}
-}
-
-func (t *OpenTSDB) Send(line []byte) {
-	var wg sync.WaitGroup
-
-	if len(line) == 0 {
-		return
-	}
+	writers := []io.Writer{}
 
 	for _, b := range t.backends {
 		if b == nil {
 			continue
 		}
 
-		wg.Add(1)
-		go func(b *telnetBackend) {
-			defer wg.Done()
+		remote, err := b.Pool.Get()
+		if err != nil {
+			continue
+		}
 
-			var err error
-			sendOk := false
-			for i := 0; i < b.Cfg.Retry; i++ {
-				err := b.WriteBackend(line)
-				if err == nil {
-					sendOk = true
-					break
-				}
-				time.Sleep(time.Millisecond * 10)
-			}
-
-			if !sendOk {
-				logger.Error.Println("ERROR send influxdb %s fail: %v", b.Cfg.Location, err)
-			}
-
-			return
-		}(b)
-
+		writers = append(writers, remote)
 	}
 
-	wg.Wait()
+	mw := io.MultiWriter(writers...)
+
+	_, err := io.Copy(mw, conn)
+	if err != nil {
+		logger.Error.Printf("ERROR writing to multiwriter: %s\n", err.Error())
+	}
 }
+
+//func (t *OpenTSDB) Send(line []byte) {
+//	var wg sync.WaitGroup
+//
+//	if len(line) == 0 {
+//		return
+//	}
+//
+//	for _, b := range t.backends {
+//		if b == nil {
+//			continue
+//		}
+//
+//		wg.Add(1)
+//		go func(b *telnetBackend) {
+//			defer wg.Done()
+//
+//			var err error
+//			sendOk := false
+//			for i := 0; i < b.Cfg.Retry; i++ {
+//				err := b.WriteBackend(line)
+//				if err == nil {
+//					sendOk = true
+//					break
+//				}
+//				time.Sleep(time.Millisecond * 10)
+//			}
+//
+//			if !sendOk {
+//				logger.Error.Println("ERROR send influxdb %s fail: %v", b.Cfg.Location, err)
+//			}
+//
+//			return
+//		}(b)
+//
+//	}
+//
+//	wg.Wait()
+//}
 
 func (t *OpenTSDB) Stop() error {
 	atomic.StoreInt64(&t.closing, 1)
