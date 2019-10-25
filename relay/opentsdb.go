@@ -116,7 +116,6 @@ func (t *OpenTSDB) serveTelnet() {
 func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 	defer conn.Close()
 
-	remoteAddr := conn.RemoteAddr().String()
 	r := textproto.NewReader(bufio.NewReader(conn))
 	for {
 		line, err := r.ReadLine()
