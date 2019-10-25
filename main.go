@@ -7,7 +7,6 @@ import (
 	"influxdb-relay/common/log"
 	"influxdb-relay/config"
 	"influxdb-relay/relay"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -84,9 +83,9 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
 
-	go func() {
-		log.Info.Println(http.ListenAndServe(":19096", nil))
-	}()
+	//go func() {
+	//	log.Info.Println(http.ListenAndServe(":19096", nil))
+	//}()
 
 	go func() {
 		<-sigChan

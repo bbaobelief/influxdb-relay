@@ -1,17 +1,34 @@
 package relay
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	nlist "github.com/toolkits/container/list"
 	logger "influxdb-relay/common/log"
 	"influxdb-relay/config"
 	"io"
 	"net"
+	"net/textproto"
+	"sync"
 	"sync/atomic"
+	"time"
+)
+
+var (
+	SenderQueue = nlist.NewSafeListLimited(DefaultSendQueueMaxSize)
+)
+
+const (
+	DefaultSendSleepInterval   = time.Millisecond * 50 //默认睡眠间隔为50ms
+	DefaultSendQueueMaxSize    = 1024000               //102.4w
+	DefaultDefaultBatchMaxSize = 200
 )
 
 type OpenTSDB struct {
-	addr string
-	name string
+	addr  string
+	name  string
+	batch int
 
 	closing int64
 	ln      net.Listener
@@ -32,6 +49,12 @@ func NewTSDBRelay(cfg config.TSDBonfig) (Relay, error) {
 
 	t.addr = cfg.Addr
 	t.name = cfg.Name
+
+	if cfg.Batch == 0 {
+		t.batch = DefaultDefaultBatchMaxSize
+	}
+
+	t.batch = cfg.Batch
 
 	listener, err := net.Listen("tcp", t.addr)
 	if err != nil {
@@ -61,84 +84,111 @@ func NewTSDBRelay(cfg config.TSDBonfig) (Relay, error) {
 func (t *OpenTSDB) Run() error {
 	logger.Info.Printf("INFO Starting opentsdb relay %q on %v \n", t.Name(), t.addr)
 
+	wg := sync.WaitGroup{}
+
+	// write
+	wg.Add(1)
+	go func() { defer wg.Done(); t.forward2GraphTask() }()
+
+	// read
+	wg.Add(1)
+	go func() { defer wg.Done(); t.serveTelnet() }()
+
+	wg.Wait()
+	return nil
+}
+
+func (t *OpenTSDB) serveTelnet() {
 	for {
 		conn, err := t.ln.Accept()
 		if opErr, ok := err.(*net.OpError); ok && !opErr.Temporary() {
 			logger.Info.Println("INFO Opentsdb tcp listener closed")
-			return opErr
+			return
 		} else if err != nil {
 			logger.Error.Println("ERROR accepting OpenTSDB", err)
 			continue
 		}
 
-		go t.handleConn(conn)
+		go t.handleTelnetConn(conn)
 	}
 }
 
-func (t *OpenTSDB) handleConn(conn net.Conn) {
+func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 	defer conn.Close()
 
-	writers := []io.Writer{}
-
-	for _, b := range t.backends {
-		if b == nil {
-			continue
-		}
-
-		remote, err := b.Pool.Get()
+	remoteAddr := conn.RemoteAddr().String()
+	r := textproto.NewReader(bufio.NewReader(conn))
+	for {
+		line, err := r.ReadLine()
 		if err != nil {
-			continue
+			if err != io.EOF {
+				logger.Info.Println("Error reading from OpenTSDB connection", err)
+			}
+
+			return
 		}
 
-		writers = append(writers, remote)
+		isSuccess := SenderQueue.PushFront(line)
+		if !isSuccess {
+			logger.Error.Println("ERROR sender queue overflow: %d \n", (DefaultSendQueueMaxSize - SenderQueue.Len()))
+		}
 	}
 
-	mw := io.MultiWriter(writers...)
+}
 
-	_, err := io.Copy(mw, conn)
-	if err != nil {
-		logger.Error.Printf("ERROR writing to multiwriter: %s\n", err.Error())
+func (t *OpenTSDB) forward2GraphTask() {
+	for {
+
+		if atomic.LoadInt64(&t.closing) == 1 {
+			break
+		}
+
+		items := SenderQueue.PopBackBy(t.batch)
+		count := len(items)
+
+		fmt.Printf("len: %d, count: %d \n", SenderQueue.Len(), count)
+
+		if count == 0 {
+			time.Sleep(DefaultSendSleepInterval)
+			continue
+		}
+
+		var tsdbBuffer bytes.Buffer
+		for i := 0; i < count; i++ {
+			tsdbItem := items[i].(string)
+			tsdbBuffer.WriteString(tsdbItem)
+			tsdbBuffer.WriteString("\n")
+		}
+
+		// Send multiple backend
+		for _, b := range t.backends {
+			if b == nil {
+				continue
+			}
+
+			// Retry write
+			go func(b *telnetBackend, line []byte) { Send(b, line) }(b, tsdbBuffer.Bytes())
+		}
 	}
 }
 
-//func (t *OpenTSDB) Send(line []byte) {
-//	var wg sync.WaitGroup
-//
-//	if len(line) == 0 {
-//		return
-//	}
-//
-//	for _, b := range t.backends {
-//		if b == nil {
-//			continue
-//		}
-//
-//		wg.Add(1)
-//		go func(b *telnetBackend) {
-//			defer wg.Done()
-//
-//			var err error
-//			sendOk := false
-//			for i := 0; i < b.Cfg.Retry; i++ {
-//				err := b.WriteBackend(line)
-//				if err == nil {
-//					sendOk = true
-//					break
-//				}
-//				time.Sleep(time.Millisecond * 10)
-//			}
-//
-//			if !sendOk {
-//				logger.Error.Println("ERROR send influxdb %s fail: %v", b.Cfg.Location, err)
-//			}
-//
-//			return
-//		}(b)
-//
-//	}
-//
-//	wg.Wait()
-//}
+func Send(b *telnetBackend, line []byte) {
+
+	var err error
+	sendOk := false
+	for i := 0; i < b.Cfg.Retry; i++ {
+		err := b.WriteBackend(line)
+		if err == nil {
+			sendOk = true
+			break
+		}
+		time.Sleep(time.Millisecond * 10)
+	}
+
+	if !sendOk {
+		logger.Error.Println("ERROR send influxdb %s fail: %v", b.Cfg.Location, err)
+	}
+}
 
 func (t *OpenTSDB) Stop() error {
 	atomic.StoreInt64(&t.closing, 1)

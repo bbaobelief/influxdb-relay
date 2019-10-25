@@ -88,9 +88,7 @@ type TSDBonfig struct {
 
 	Addr string `toml:"bind-addr"`
 
-	Precision string `toml:"precision"`
-
-	ReadBuffer int `toml:"read-buffer"`
+	Batch int `toml:"Batch"`
 
 	Outputs []TSDBOutputConfig `toml:"output"`
 }
