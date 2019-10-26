@@ -147,7 +147,7 @@ func (t *OpenTSDB) sendTask() {
 		items := SenderQueue.PopBackBy(t.batch)
 		count := len(items)
 
-		logger.Info.Printf("INFO SenderQueue len: %d, count: %d goroutine: %d\n", SenderQueue.Len(), count, runtime.NumGoroutine())
+		logger.Info.Printf("INFO SenderQueue len: %d \t count: %d \t goroutine: %d\n", SenderQueue.Len(), count, runtime.NumGoroutine())
 
 		if count == 0 {
 			time.Sleep(DefaultSendSleepInterval)
