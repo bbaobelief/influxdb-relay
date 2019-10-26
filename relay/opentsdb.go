@@ -122,7 +122,7 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 		line, err := r.ReadLine()
 		if err != nil {
 			if err != io.EOF {
-				logger.Info.Println("Error reading from OpenTSDB connection", err)
+				logger.Info.Println("ERROR reading from OpenTSDB connection", err)
 			}
 
 			return
@@ -130,7 +130,7 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 
 		isSuccess := SenderQueue.PushFront(line)
 		if !isSuccess {
-			logger.Error.Printf("ERROR sender queue overflow: %d \n", (DefaultSendQueueMaxSize - SenderQueue.Len()))
+			logger.Error.Printf("ERROR SenderQueue overflow: %d \n %s \n", (DefaultSendQueueMaxSize - SenderQueue.Len()), line)
 		}
 	}
 
@@ -147,7 +147,7 @@ func (t *OpenTSDB) sendTask() {
 		items := SenderQueue.PopBackBy(t.batch)
 		count := len(items)
 
-		fmt.Printf("len: %d, count: %d goroutine: %d\n", SenderQueue.Len(), count, runtime.NumGoroutine())
+		logger.Info.Printf("INFO SenderQueue len: %d, count: %d goroutine: %d\n", SenderQueue.Len(), count, runtime.NumGoroutine())
 
 		if count == 0 {
 			time.Sleep(DefaultSendSleepInterval)
@@ -193,7 +193,7 @@ func Send(b *telnetBackend, line []byte) {
 	}
 
 	if !sendOk {
-		logger.Error.Println("ERROR send influxdb %s fail: %v", b.Cfg.Location, err)
+		logger.Error.Printf("ERROR send influxdb %s fail: %v", b.Cfg.Location, err)
 	}
 }
 
