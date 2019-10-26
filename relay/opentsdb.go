@@ -136,8 +136,7 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 
 }
 func (t *OpenTSDB) sendTask() {
-	pool := gpool.New(1000)
-	println(runtime.NumGoroutine())
+	pool := gpool.New(100)
 
 	for {
 
@@ -148,7 +147,7 @@ func (t *OpenTSDB) sendTask() {
 		items := SenderQueue.PopBackBy(t.batch)
 		count := len(items)
 
-		fmt.Printf("len: %d, count: %d \n", SenderQueue.Len(), count)
+		fmt.Printf("len: %d, count: %d goroutine: %d\n", SenderQueue.Len(), count, runtime.NumGoroutine())
 
 		if count == 0 {
 			time.Sleep(DefaultSendSleepInterval)
@@ -173,7 +172,6 @@ func (t *OpenTSDB) sendTask() {
 				Send(b, batchItems)
 			}
 
-			println(runtime.NumGoroutine())
 			pool.Done()
 		}(tsdbBuffer.Bytes())
 	}
