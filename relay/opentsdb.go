@@ -5,11 +5,13 @@ import (
 	"bytes"
 	"fmt"
 	nlist "github.com/toolkits/container/list"
+	"influxdb-relay/common/gpool"
 	logger "influxdb-relay/common/log"
 	"influxdb-relay/config"
 	"io"
 	"net"
 	"net/textproto"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -50,11 +52,10 @@ func NewTSDBRelay(cfg config.TSDBonfig) (Relay, error) {
 	t.addr = cfg.Addr
 	t.name = cfg.Name
 
+	t.batch = cfg.Batch
 	if cfg.Batch == 0 {
 		t.batch = DefaultDefaultBatchMaxSize
 	}
-
-	t.batch = cfg.Batch
 
 	listener, err := net.Listen("tcp", t.addr)
 	if err != nil {
@@ -88,7 +89,7 @@ func (t *OpenTSDB) Run() error {
 
 	// write
 	wg.Add(1)
-	go func() { defer wg.Done(); t.forward2GraphTask() }()
+	go func() { defer wg.Done(); t.sendTask() }()
 
 	// read
 	wg.Add(1)
@@ -129,13 +130,15 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 
 		isSuccess := SenderQueue.PushFront(line)
 		if !isSuccess {
-			logger.Error.Println("ERROR sender queue overflow: %d \n", (DefaultSendQueueMaxSize - SenderQueue.Len()))
+			logger.Error.Printf("ERROR sender queue overflow: %d \n", (DefaultSendQueueMaxSize - SenderQueue.Len()))
 		}
 	}
 
 }
+func (t *OpenTSDB) sendTask() {
+	pool := gpool.New(1000)
+	println(runtime.NumGoroutine())
 
-func (t *OpenTSDB) forward2GraphTask() {
 	for {
 
 		if atomic.LoadInt64(&t.closing) == 1 {
@@ -159,16 +162,23 @@ func (t *OpenTSDB) forward2GraphTask() {
 			tsdbBuffer.WriteString("\n")
 		}
 
-		// Send multiple backend
-		for _, b := range t.backends {
-			if b == nil {
-				continue
+		pool.Add(1)
+		go func(batchItems []byte) {
+			// Send multiple backend
+			for _, b := range t.backends {
+				if b == nil {
+					continue
+				}
+				// Retry write
+				Send(b, batchItems)
 			}
 
-			// Retry write
-			go func(b *telnetBackend, line []byte) { Send(b, line) }(b, tsdbBuffer.Bytes())
-		}
+			println(runtime.NumGoroutine())
+			pool.Done()
+		}(tsdbBuffer.Bytes())
 	}
+
+	pool.Wait()
 }
 
 func Send(b *telnetBackend, line []byte) {
