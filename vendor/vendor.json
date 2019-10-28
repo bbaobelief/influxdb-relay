@@ -1,0 +1,49 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "5KOXcT4eqGzX9lYfk+ZVchkuc5A=",
+			"path": "github.com/influxdata/influxdb1-client/models",
+			"revision": "8ff2fc3824fcb533795f9a2f233275f0bb18d6c5",
+			"revisionTime": "2019-04-02T20:47:10Z"
+		},
+		{
+			"checksumSHA1": "EP8V9PgEedLKrUrkexkPQcbDzFk=",
+			"path": "github.com/influxdata/influxdb1-client/pkg/escape",
+			"revision": "8ff2fc3824fcb533795f9a2f233275f0bb18d6c5",
+			"revisionTime": "2019-04-02T20:47:10Z"
+		},
+		{
+			"checksumSHA1": "A6nZdZ1/lTOVINhIndyw2ZWN9JU=",
+			"path": "github.com/naoina/go-stringutil",
+			"revision": "6b638e95a32d0c1131db0e7fe83775cbea4a0d0b",
+			"revisionTime": "2015-11-18T23:44:43Z"
+		},
+		{
+			"checksumSHA1": "FYM/8R2CqS6PSNAoKl6X5gNJ20A=",
+			"path": "github.com/naoina/toml",
+			"revision": "9fafd69674167c06933b1787ae235618431ce87f",
+			"revisionTime": "2017-09-18T21:04:37Z"
+		},
+		{
+			"checksumSHA1": "wqHUdIsZSwRHQzNTB+1KvJdONdM=",
+			"path": "github.com/naoina/toml/ast",
+			"revision": "9fafd69674167c06933b1787ae235618431ce87f",
+			"revisionTime": "2017-09-18T21:04:37Z"
+		},
+		{
+			"checksumSHA1": "HJJN68sLyFxlv2cy7dgpWuzPk7o=",
+			"path": "github.com/toolkits/container/list",
+			"revision": "ba7d73adeaca8dc16c676dedbbb48cc46d3eccb0",
+			"revisionTime": "2015-12-19T22:58:05Z"
+		},
+		{
+			"checksumSHA1": "gwVZ8yIetbF4V5jUs2eW491H08I=",
+			"path": "gopkg.in/fatih/pool.v3",
+			"revision": "830a0f4759206ca695bc91927303867a1ba951bc",
+			"revisionTime": "2018-01-17T18:46:49Z"
+		}
+	],
+	"rootPath": "influxdb-relay"
+}
