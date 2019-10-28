@@ -11,7 +11,6 @@ import (
 	"io"
 	"net"
 	"net/textproto"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,15 +21,17 @@ var (
 )
 
 const (
-	DefaultSendSleepInterval   = time.Millisecond * 50 //默认睡眠间隔为50ms
-	DefaultSendQueueMaxSize    = 1024000               //102.4w
-	DefaultDefaultBatchMaxSize = 200
+	DefaultSendSleepInterval = time.Millisecond * 50 //默认睡眠间隔为50ms
+	DefaultSendQueueMaxSize  = 1024000               //102.4w
+	DefaultBatchMaxSize      = 200
+	DefaultConcurrentMaxSize = 100
 )
 
 type OpenTSDB struct {
-	addr  string
-	name  string
-	batch int
+	addr       string
+	name       string
+	batch      int
+	concurrent int
 
 	closing int64
 	ln      net.Listener
@@ -54,7 +55,12 @@ func NewTSDBRelay(cfg config.TSDBonfig) (Relay, error) {
 
 	t.batch = cfg.Batch
 	if cfg.Batch == 0 {
-		t.batch = DefaultDefaultBatchMaxSize
+		t.batch = DefaultBatchMaxSize
+	}
+
+	t.concurrent = cfg.Concurrent
+	if cfg.Concurrent == 0 {
+		t.concurrent = DefaultConcurrentMaxSize
 	}
 
 	listener, err := net.Listen("tcp", t.addr)
@@ -147,7 +153,7 @@ func (t *OpenTSDB) sendTask() {
 		items := SenderQueue.PopBackBy(t.batch)
 		count := len(items)
 
-		logger.Info.Printf("INFO SenderQueue len: %d \t count: %d \t goroutine: %d\n", SenderQueue.Len(), count, runtime.NumGoroutine())
+		logger.Info.Printf("INFO SenderQueue | len: %6d | put: %6d|\n", SenderQueue.Len(), count)
 
 		if count == 0 {
 			time.Sleep(DefaultSendSleepInterval)

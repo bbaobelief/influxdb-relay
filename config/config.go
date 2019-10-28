@@ -90,6 +90,8 @@ type TSDBonfig struct {
 
 	Batch int `toml:"batch"`
 
+	Concurrent int `toml:"concurrent"`
+
 	Outputs []TSDBOutputConfig `toml:"output"`
 }
 
