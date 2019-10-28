@@ -128,7 +128,7 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 		line, err := r.ReadLine()
 		if err != nil {
 			if err != io.EOF {
-				logger.Info.Println("ERROR reading from OpenTSDB connection", err)
+				logger.Error.Println("ERROR reading from OpenTSDB connection", err)
 			}
 
 			return
