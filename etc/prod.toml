@@ -1,9 +1,9 @@
 [[opentsdb]]
 name = "opentsdb-tcp"
 batch = 1000
-concurrent = 100
+concurrent = 200
 bind-addr = "127.0.0.1:9096"
 output = [
-    { name="influxdb-24242", location="127.0.0.1:24242", init-cap=5, max-cap=10, fail-retry=3},
-    { name="influxdb-14242", location="127.0.0.1:14242", init-cap=5, max-cap=10, fail-retry=3},
+    { name="influxdb-24242", location="127.0.0.1:24242", init-cap=10, max-cap=30, fail-retry=3},
+    { name="influxdb-14242", location="127.0.0.1:14242", init-cap=10, max-cap=30, fail-retry=3},
 ]

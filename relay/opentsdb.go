@@ -22,7 +22,7 @@ var (
 
 const (
 	DefaultSendSleepInterval = time.Millisecond * 50 //默认睡眠间隔为50ms
-	DefaultSendQueueMaxSize  = 1024000               //102.4w
+	DefaultSendQueueMaxSize  = 10240000               //102.4w
 	DefaultBatchMaxSize      = 200
 	DefaultConcurrentMaxSize = 100
 )
@@ -39,12 +39,12 @@ type OpenTSDB struct {
 	backends []*telnetBackend
 }
 
-func (g *OpenTSDB) Name() string {
-	if g.name == "" {
-		return fmt.Sprintf("INFO tcp://%s \n", g.addr)
+func (t *OpenTSDB) Name() string {
+	if t.name == "" {
+		return fmt.Sprintf("INFO tcp://%s \n", t.addr)
 	}
 
-	return g.name
+	return t.name
 }
 
 func NewTSDBRelay(cfg config.TSDBonfig) (Relay, error) {
@@ -136,13 +136,13 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 
 		isSuccess := SenderQueue.PushFront(line)
 		if !isSuccess {
-			logger.Error.Printf("ERROR SenderQueue overflow: %d \n %s \n", (DefaultSendQueueMaxSize - SenderQueue.Len()), line)
+			logger.Error.Printf("ERROR SenderQueue overflow: %d \n%s \n", DefaultSendQueueMaxSize-SenderQueue.Len(), line)
 		}
 	}
-
 }
+
 func (t *OpenTSDB) sendTask() {
-	pool := gpool.New(100)
+	pool := gpool.New(t.concurrent)
 
 	for {
 
