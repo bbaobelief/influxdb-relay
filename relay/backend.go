@@ -2,9 +2,8 @@ package relay
 
 import (
 	"gopkg.in/fatih/pool.v3"
-	logger "influxdb-relay/common/log"
+	"influxdb-relay/common/rlog"
 	"influxdb-relay/config"
-	"log"
 	"net"
 )
 
@@ -30,9 +29,8 @@ func newTelnetBackend(cfg *config.TSDBOutputConfig) (*telnetBackend, error) {
 	factory := func() (net.Conn, error) { return net.Dial("tcp", cfg.Location) }
 
 	p, err := pool.NewChannelPool(cfg.InitCap, cfg.MaxCap, factory)
-
 	if err != nil {
-		log.Fatalf("ERROR Creating InfluxDB Client: %s \n", err)
+		rlog.Logger.Fatalf("Creating InfluxDB Client: %s \n", err)
 	}
 
 	tb := &telnetBackend{
@@ -54,11 +52,11 @@ func (t *telnetBackend) WriteBackend(b []byte) (err error) {
 
 	_, err = conn.Write(b)
 	if err != nil {
-		logger.Error.Printf("%s: %s", t.Cfg.Location, err)
+		rlog.Logger.Errorf("%s: %s", t.Cfg.Location, err)
 
 		if pc, ok := conn.(*pool.PoolConn); ok {
 			pc.MarkUnusable()
-			pc.Close()
+			_ = pc.Close()
 		}
 
 		return

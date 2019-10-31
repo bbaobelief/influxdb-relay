@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"influxdb-relay/common/log"
+	"influxdb-relay/common/rlog"
 	"influxdb-relay/config"
 	"influxdb-relay/relay"
 	"net/http"
@@ -18,10 +18,10 @@ var (
 	cfg     = flag.String("config", "", "Configuration file to use")
 	version = flag.Bool("version", false, "show version info")
 
-	gitTag       string = ""
-	gitCommit    string = "$Format:%H$"
-	gitTreeState string = "not a git tree"
-	buildDate    string = "1970-01-01T00:00:00Z"
+	gitTag       = ""
+	gitCommit    = "$Format:%H$"
+	gitTreeState = "not a git tree"
+	buildDate    = "1970-01-01T00:00:00Z"
 )
 
 type Info struct {
@@ -57,7 +57,7 @@ func main() {
 		v := versionInfo()
 		marshalled, err := json.MarshalIndent(&v, "", "  ")
 		if err != nil {
-			log.Info.Println(err)
+			rlog.Logger.Notice(err)
 			os.Exit(1)
 		}
 
@@ -66,26 +66,26 @@ func main() {
 	}
 
 	if *cfg == "" {
-		log.Error.Println("Missing configuration file")
+		rlog.Logger.Error("Missing configuration file")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
 	cfg, err := config.LoadConfigFile(*cfg)
 	if err != nil {
-		log.Error.Println("Problem loading config file:", err)
+		rlog.Logger.Error("Problem loading config file:", err)
 	}
 
 	r, err := relay.New(cfg)
 	if err != nil {
-		log.Error.Fatal(err)
+		rlog.Logger.Fatal(err)
 	}
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
 
 	go func() {
-		log.Info.Println(http.ListenAndServe(":19096", nil))
+		rlog.Logger.Info(http.ListenAndServe(":19096", nil))
 	}()
 
 	go func() {
@@ -93,6 +93,6 @@ func main() {
 		r.Stop()
 	}()
 
-	log.Info.Println("INFO starting relays...")
+	rlog.Logger.Info("INFO starting relays...")
 	r.Run()
 }

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	nlist "github.com/toolkits/container/list"
 	"influxdb-relay/common/gpool"
-	logger "influxdb-relay/common/log"
+	"influxdb-relay/common/rlog"
 	"influxdb-relay/config"
 	"io"
 	"net"
@@ -89,7 +89,7 @@ func NewTSDBRelay(cfg config.TSDBonfig) (Relay, error) {
 }
 
 func (t *OpenTSDB) Run() error {
-	logger.Info.Printf("INFO Starting opentsdb relay %q on %v \n", t.Name(), t.addr)
+	rlog.Logger.Infof("Starting opentsdb relay %q on %v \n", t.Name(), t.addr)
 
 	wg := sync.WaitGroup{}
 
@@ -109,10 +109,10 @@ func (t *OpenTSDB) serveTelnet() {
 	for {
 		conn, err := t.ln.Accept()
 		if opErr, ok := err.(*net.OpError); ok && !opErr.Temporary() {
-			logger.Info.Println("INFO Opentsdb tcp listener closed")
+			rlog.Logger.Notice("Opentsdb tcp listener closed")
 			return
 		} else if err != nil {
-			logger.Error.Println("ERROR accepting OpenTSDB", err)
+			rlog.Logger.Errorf("Accepting OpenTSDB", err)
 			continue
 		}
 
@@ -128,7 +128,7 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 		line, err := r.ReadLine()
 		if err != nil {
 			if err != io.EOF {
-				logger.Error.Println("ERROR reading from OpenTSDB connection", err)
+				rlog.Logger.Warningf("Reading from OpenTSDB connection", err)
 			}
 
 			return
@@ -136,7 +136,8 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 
 		isSuccess := SenderQueue.PushFront(line)
 		if !isSuccess {
-			logger.Error.Printf("ERROR SenderQueue overflow: %d \n%s \n", DefaultSendQueueMaxSize-SenderQueue.Len(), line)
+			rlog.Logger.Error("SenderQueue overflow: %d \n", DefaultSendQueueMaxSize-SenderQueue.Len())
+			rlog.Logger.Critical(line)
 		}
 	}
 }
@@ -153,7 +154,7 @@ func (t *OpenTSDB) sendTask() {
 		items := SenderQueue.PopBackBy(t.batch)
 		count := len(items)
 
-		logger.Info.Printf("INFO SenderQueue | len: %6d | put: %6d|\n", SenderQueue.Len(), count)
+		rlog.Logger.Debugf("SenderQueue | len: %6d | put: %6d|\n", SenderQueue.Len(), count)
 
 		if count == 0 {
 			time.Sleep(DefaultSendSleepInterval)
@@ -198,7 +199,7 @@ func Send(b *telnetBackend, line []byte) {
 	}
 
 	if !sendOk {
-		logger.Error.Printf("ERROR send influxdb %s fail", b.Cfg.Location)
+		rlog.Logger.Error("Send influxdb %s fail", b.Cfg.Location)
 	}
 }
 

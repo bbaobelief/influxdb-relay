@@ -2,7 +2,7 @@ package relay
 
 import (
 	"fmt"
-	"influxdb-relay/common/log"
+	"influxdb-relay/common/rlog"
 	"influxdb-relay/config"
 	"sync"
 )
@@ -68,7 +68,7 @@ func (s *Service) Run() {
 			defer wg.Done()
 
 			if err := relay.Run(); err != nil {
-				log.Info.Printf("ERROR running relay %q: %v", relay.Name(), err)
+				rlog.Logger.Errorf("Running relay %q: %v", relay.Name(), err)
 			}
 		}()
 	}
