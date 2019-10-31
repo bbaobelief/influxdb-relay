@@ -33,6 +33,12 @@
 			"revisionTime": "2017-09-18T21:04:37Z"
 		},
 		{
+			"checksumSHA1": "BoXdUBWB8UnSlFlbnuTQaPqfCGk=",
+			"path": "github.com/op/go-logging",
+			"revision": "970db520ece77730c7e4724c61121037378659d9",
+			"revisionTime": "2016-03-15T20:05:05Z"
+		},
+		{
 			"checksumSHA1": "HJJN68sLyFxlv2cy7dgpWuzPk7o=",
 			"path": "github.com/toolkits/container/list",
 			"revision": "ba7d73adeaca8dc16c676dedbbb48cc46d3eccb0",
