@@ -22,7 +22,7 @@ var (
 
 const (
 	DefaultSendSleepInterval = time.Millisecond * 50 //默认睡眠间隔为50ms
-	DefaultSendQueueMaxSize  = 10240000               //102.4w
+	DefaultSendQueueMaxSize  = 10240000              //1024w
 	DefaultBatchMaxSize      = 200
 	DefaultConcurrentMaxSize = 100
 )
@@ -187,7 +187,6 @@ func (t *OpenTSDB) sendTask() {
 
 func Send(b *telnetBackend, line []byte) {
 
-	var err error
 	sendOk := false
 	for i := 0; i < b.Cfg.Retry; i++ {
 		err := b.WriteBackend(line)
@@ -199,7 +198,7 @@ func Send(b *telnetBackend, line []byte) {
 	}
 
 	if !sendOk {
-		logger.Error.Printf("ERROR send influxdb %s fail: %v", b.Cfg.Location, err)
+		logger.Error.Printf("ERROR send influxdb %s fail", b.Cfg.Location)
 	}
 }
 
