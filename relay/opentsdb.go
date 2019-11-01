@@ -136,7 +136,7 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 
 		isSuccess := SenderQueue.PushFront(line)
 		if !isSuccess {
-			rlog.Logger.Error("SenderQueue overflow: %d \n", DefaultSendQueueMaxSize-SenderQueue.Len())
+			rlog.Logger.Warningf("SenderQueue overflow: %d \n", DefaultSendQueueMaxSize-SenderQueue.Len())
 			rlog.Logger.Critical(line)
 		}
 	}
