@@ -22,7 +22,7 @@ var (
 
 const (
 	DefaultSendSleepInterval = time.Millisecond * 50 //默认睡眠间隔为50ms
-	DefaultSendQueueMaxSize  = 10240000              //1024w
+	DefaultSendQueueMaxSize  = 1024000               //102.4w
 	DefaultBatchMaxSize      = 200
 	DefaultConcurrentMaxSize = 100
 )

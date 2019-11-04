@@ -8,7 +8,7 @@ import (
 var Logger = logging.MustGetLogger("relay")
 
 var format = logging.MustStringFormatter(
-	`%{color}%{time:2006-01-02 15:04:05.000} %{shortfile} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+	`%{color}%{time:2006-01-02 15:04:05.000} %{shortfile} > %{level:.4s} %{id:03x}%{color:reset} %{message}`,
 )
 
 func init() {
