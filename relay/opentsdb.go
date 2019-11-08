@@ -203,7 +203,7 @@ func Send(b *telnetBackend, line []byte) {
 	}
 
 	if !sendOk {
-		rlog.Logger.Error("Send influxdb %s fail", b.Cfg.Location)
+		rlog.Logger.Warningf("Send influxdb %s fail", b.Cfg.Location)
 	}
 }
 
