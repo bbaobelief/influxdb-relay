@@ -66,7 +66,7 @@ func main() {
 	}
 
 	if *cfg == "" {
-		rlog.Logger.Error("Missing configuration file")
+		fmt.Println("Missing configuration file")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}

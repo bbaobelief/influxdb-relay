@@ -62,7 +62,7 @@ func (t *telnetBackend) WriteBackend(b []byte) (err error) {
 
 	_, err = conn.Write(b)
 	if err != nil {
-		rlog.Logger.Errorf("%s: %s", t.Cfg.Location, err)
+		//rlog.Logger.Errorf("%s: %s", t.Cfg.Location, err)
 
 		if pc, ok := conn.(*pool.PoolConn); ok {
 			pc.MarkUnusable()

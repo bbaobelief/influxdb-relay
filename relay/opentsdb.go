@@ -202,6 +202,7 @@ func Send(b *telnetBackend, line []byte) {
 			break
 		}
 		time.Sleep(time.Millisecond * 10)
+		rlog.Logger.Notice(b.Cfg.Location)
 	}
 
 	if !sendOk {
