@@ -21,10 +21,12 @@ var (
 )
 
 const (
-	DefaultSendSleepInterval = time.Millisecond * 50 //默认睡眠间隔为50ms
+	DefaultSendSleepInterval = 50 * time.Millisecond //默认睡眠间隔为50ms
+	DefaultTCPTimeout        = 10 * time.Second      //默认超时时间为10s
 	DefaultSendQueueMaxSize  = 1024000               //102.4w
 	DefaultBatchMaxSize      = 200
 	DefaultConcurrentMaxSize = 100
+	DefaultRetry             = 3
 )
 
 type OpenTSDB struct {
@@ -159,7 +161,7 @@ func (t *OpenTSDB) sendTask() {
 			continue
 		}
 
-		rlog.Logger.Debugf("SenderQueue | len: %6d | put: %6d|\n", SenderQueue.Len(), count)
+		//rlog.Logger.Debugf("SenderQueue | len: %6d | put: %6d|\n", SenderQueue.Len(), count)
 
 		var tsdbBuffer bytes.Buffer
 		for i := 0; i < count; i++ {
@@ -169,6 +171,7 @@ func (t *OpenTSDB) sendTask() {
 		}
 
 		pool.Add(1)
+		startTime := time.Now()
 		go func(batchItems []byte) {
 			// Send multiple backend
 			for _, b := range t.backends {
@@ -177,8 +180,11 @@ func (t *OpenTSDB) sendTask() {
 				}
 				// Retry write
 				Send(b, batchItems)
-			}
 
+				endTime := time.Now()
+				sub := endTime.Sub(startTime)
+				rlog.Logger.Debugf("SenderQueue %s |len: %6d |put: %6d |time: %12d |\n", b.Cfg.Name, SenderQueue.Len(), count, sub.Nanoseconds())
+			}
 			pool.Done()
 		}(tsdbBuffer.Bytes())
 	}

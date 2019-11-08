@@ -105,6 +105,8 @@ type TSDBOutputConfig struct {
 	InitCap int `toml:"init-cap"`
 
 	Retry int `toml:"fail-retry"`
+
+	Timeout string `toml:"timeout"`
 }
 
 // LoadConfigFile parses the specified file into a Config object
