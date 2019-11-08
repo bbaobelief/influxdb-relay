@@ -138,7 +138,6 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 
 		isSuccess := SenderQueue.PushFront(line)
 		if !isSuccess {
-			//rlog.Logger.Warningf("SenderQueue overflow: %d \n", DefaultSendQueueMaxSize-SenderQueue.Len())
 			rlog.Logger.Critical(line)
 		}
 	}
@@ -160,8 +159,6 @@ func (t *OpenTSDB) sendTask() {
 			time.Sleep(DefaultSendSleepInterval)
 			continue
 		}
-
-		//rlog.Logger.Debugf("SenderQueue | len: %6d | put: %6d|\n", SenderQueue.Len(), count)
 
 		var tsdbBuffer bytes.Buffer
 		for i := 0; i < count; i++ {
@@ -202,7 +199,7 @@ func Send(b *telnetBackend, line []byte) {
 			break
 		}
 		time.Sleep(time.Millisecond * 10)
-		rlog.Logger.Notice(b.Cfg.Location)
+		rlog.Logger.Noticef("Write failed retry %s, %s", b.Cfg.Location, err)
 	}
 
 	if !sendOk {
