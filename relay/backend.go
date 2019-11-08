@@ -58,7 +58,7 @@ func (t *telnetBackend) WriteBackend(b []byte) (err error) {
 		return
 	}
 
-	err = conn.SetWriteDeadline(time.Now().Add(t.Timeout))
+	//err = conn.SetWriteDeadline(time.Now().Add(t.Timeout))
 
 	_, err = conn.Write(b)
 	if err != nil {
