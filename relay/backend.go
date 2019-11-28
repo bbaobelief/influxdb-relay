@@ -58,12 +58,11 @@ func (t *telnetBackend) WriteBackend(b []byte) (err error) {
 		return
 	}
 
-	//err = conn.SetWriteDeadline(time.Now().Add(t.Timeout))
+	err = conn.SetWriteDeadline(time.Now().Add(t.Timeout))
 
 	_, err = conn.Write(b)
 	if err != nil {
-		//rlog.Logger.Errorf("%s: %s", t.Cfg.Location, err)
-
+		// 如果写失败则释放连接
 		if pc, ok := conn.(*pool.PoolConn); ok {
 			pc.MarkUnusable()
 			_ = pc.Close()

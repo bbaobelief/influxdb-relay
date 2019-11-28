@@ -2,10 +2,8 @@ package relay
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	nlist "github.com/toolkits/container/list"
-	"influxdb-relay/common/gpool"
 	"influxdb-relay/common/rlog"
 	"influxdb-relay/config"
 	"io"
@@ -144,7 +142,6 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 }
 
 func (t *OpenTSDB) sendTask() {
-	pool := gpool.New(t.concurrent)
 
 	for {
 
@@ -160,50 +157,52 @@ func (t *OpenTSDB) sendTask() {
 			continue
 		}
 
-		var tsdbBuffer bytes.Buffer
+		outBuf := getBuf()
 		for i := 0; i < count; i++ {
 			tsdbItem := items[i].(string)
-			tsdbBuffer.WriteString(tsdbItem)
-			tsdbBuffer.WriteString("\n")
+			outBuf.WriteString(tsdbItem)
+			outBuf.WriteString("\n")
 		}
 
-		pool.Add(1)
-		startTime := time.Now()
-		go func(batchItems []byte) {
-			// Send multiple backend
-			for _, b := range t.backends {
-				if b == nil {
-					continue
-				}
+		// Send multiple backend
+		for _, b := range t.backends {
+			if b == nil {
+				continue
+			}
+
+			startTime := time.Now()
+			go func(conn *telnetBackend, batchItems []byte) {
 				// Retry write
-				Send(b, batchItems)
+				Send(conn, batchItems)
 
 				endTime := time.Now()
 				sub := endTime.Sub(startTime)
-				rlog.Logger.Debugf("SenderQueue %s |len: %6d |put: %6d |time: %12d |\n", b.Cfg.Name, SenderQueue.Len(), count, sub.Nanoseconds())
-			}
-			pool.Done()
-		}(tsdbBuffer.Bytes())
+				rlog.Logger.Debugf("SenderQueue %s |len: %6d |put: %6d |time: %12d |\n", conn.Cfg.Name, SenderQueue.Len(), count, sub.Nanoseconds())
+
+			}(b, outBuf.Bytes())
+		}
+
+		putBuf(outBuf)
 	}
 
-	pool.Wait()
 }
 
 func Send(b *telnetBackend, line []byte) {
 
+	var err error
 	sendOk := false
 	for i := 0; i < b.Cfg.Retry; i++ {
-		err := b.WriteBackend(line)
+		err = b.WriteBackend(line)
 		if err == nil {
 			sendOk = true
 			break
 		}
-		time.Sleep(time.Millisecond * 10)
-		rlog.Logger.Noticef("Write failed retry %s, %s", b.Cfg.Location, err)
+		time.Sleep(DefaultSendSleepInterval)
 	}
 
 	if !sendOk {
-		rlog.Logger.Errorf("Send influxdb %s fail", b.Cfg.Location)
+		rlog.Logger.Warningf("Write failed retry %s, %s", b.Cfg.Location, err)
+		rlog.Logger.Critical(line)
 	}
 }
 
