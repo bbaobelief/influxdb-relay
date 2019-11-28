@@ -142,6 +142,8 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 }
 
 func (t *OpenTSDB) sendTask() {
+	var wg sync.WaitGroup
+	sem := make(chan int, t.batch)
 
 	for {
 
@@ -170,8 +172,12 @@ func (t *OpenTSDB) sendTask() {
 				continue
 			}
 
+			wg.Add(1)
 			startTime := time.Now()
 			go func(conn *telnetBackend, batchItems []byte) {
+				defer wg.Done()
+				sem <- 1
+
 				// Retry write
 				Send(conn, batchItems)
 
@@ -179,11 +185,15 @@ func (t *OpenTSDB) sendTask() {
 				sub := endTime.Sub(startTime)
 				rlog.Logger.Debugf("SenderQueue %s |len: %6d |put: %6d |time: %12d |\n", conn.Cfg.Name, SenderQueue.Len(), count, sub.Nanoseconds())
 
+				<-sem
+
 			}(b, outBuf.Bytes())
 		}
 
 		putBuf(outBuf)
 	}
+
+	wg.Wait()
 
 }
 
