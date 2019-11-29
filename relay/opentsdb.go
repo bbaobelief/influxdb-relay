@@ -2,9 +2,11 @@ package relay
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	nlist "github.com/toolkits/container/list"
 	"influxdb-relay/common/rlog"
+	"influxdb-relay/common/gpool"
 	"influxdb-relay/config"
 	"io"
 	"net"
@@ -142,8 +144,7 @@ func (t *OpenTSDB) handleTelnetConn(conn net.Conn) {
 }
 
 func (t *OpenTSDB) sendTask() {
-	var wg sync.WaitGroup
-	sem := make(chan int, t.batch)
+	pool := gpool.New(t.concurrent)
 
 	for {
 
@@ -159,11 +160,11 @@ func (t *OpenTSDB) sendTask() {
 			continue
 		}
 
-		outBuf := getBuf()
+		var tsdbBuffer bytes.Buffer
 		for i := 0; i < count; i++ {
 			tsdbItem := items[i].(string)
-			outBuf.WriteString(tsdbItem)
-			outBuf.WriteString("\n")
+			tsdbBuffer.WriteString(tsdbItem)
+			tsdbBuffer.WriteString("\n")
 		}
 
 		// Send multiple backend
@@ -172,11 +173,10 @@ func (t *OpenTSDB) sendTask() {
 				continue
 			}
 
-			wg.Add(1)
+			pool.Add(1)
 			startTime := time.Now()
 			go func(conn *telnetBackend, batchItems []byte) {
-				defer wg.Done()
-				sem <- 1
+				defer pool.Done()
 
 				// Retry write
 				Send(conn, batchItems)
@@ -184,16 +184,12 @@ func (t *OpenTSDB) sendTask() {
 				endTime := time.Now()
 				sub := endTime.Sub(startTime)
 				rlog.Logger.Debugf("SenderQueue %s |len: %6d |put: %6d |time: %12d |\n", conn.Cfg.Name, SenderQueue.Len(), count, sub.Nanoseconds())
-
-				<-sem
-
-			}(b, outBuf.Bytes())
+			}(b, tsdbBuffer.Bytes())
 		}
 
-		putBuf(outBuf)
 	}
 
-	wg.Wait()
+	pool.Wait()
 
 }
 
@@ -212,7 +208,9 @@ func Send(b *telnetBackend, line []byte) {
 
 	if !sendOk {
 		rlog.Logger.Warningf("Write failed retry %s, %s", b.Cfg.Location, err)
-		rlog.Logger.Critical(line)
+		for i := range line {
+			rlog.Logger.Criticalf("%s | %s", b.Cfg.Location, i)
+		}
 	}
 }
 
